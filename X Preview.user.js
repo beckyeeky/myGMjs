@@ -3,7 +3,7 @@
 // @name:en        X Image Hover Preview (Right Side)
 // @name:zh-CN     X 图片悬停预览 (右侧固定版)
 // @namespace      https://github.com/yourname/TwitterImageHoverPreview
-// @version        1.1
+// @version        1.2
 // @updateURL      https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
 // @downloadURL    https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
 // @description    大屏专用：悬停图片时，在屏幕右侧（距右100px）显示原图预览。高度自适应占满屏幕，宽度最大1200px。支持滚轮切换。
@@ -38,25 +38,29 @@
       transform: translateY(-50%);
       
       /* 核心修改：尺寸限制 */
-      /* 宽度自适应，最大为1200px (1300px空白 - 100px边距) */
-      max-width: 1200px; 
-      width: auto; 
+      /* 强制限制最大宽度为1200px，防止orig大图溢出 */
+      max-width: 1200px !important; 
+      max-height: 98vh !important;
       
-      /* 高度自适应，最大占满屏幕（留一点点缝隙美观） */
-      max-height: 98vh; 
-      height: auto;
+      /* 确保宽高自适应 */
+      width: auto !important; 
+      height: auto !important;
+      
+      /* 重置可能干扰的最小尺寸 */
+      min-width: 0 !important;
+      min-height: 0 !important;
+      
+      /* 防止边框撑大尺寸 */
+      box-sizing: border-box !important;
       
       border: ${BORDER_PX}px solid #fff;
-      box-shadow: 0 0 12px rgba(0, 0, 0, .7); /* 加深阴影，增强层次感 */
+      box-shadow: 0 0 12px rgba(0, 0, 0, .7);
       z-index: 999999;
       pointer-events: none;
       display: none;
       background: #000;
       opacity: 0;
       transition: opacity .15s ease-out;
-      
-      /* 保持图片比例 */
-      object-fit: contain; 
     }
   `);
 
