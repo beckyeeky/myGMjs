@@ -3,10 +3,10 @@
 // @name:en        X Image Hover Preview (Right Side)
 // @name:zh-CN     X 图片悬停预览 (右侧固定版)
 // @namespace      https://github.com/yourname/TwitterImageHoverPreview
-// @version        1.2
+// @version        1.3
 // @updateURL      https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
 // @downloadURL    https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
-// @description    大屏专用：悬停图片时，在屏幕右侧（距右100px）显示原图预览。高度自适应占满屏幕，宽度最大1200px。支持滚轮切换。
+// @description    大屏专用：悬停图片时，在屏幕右侧显示固定容器预览。支持滚轮切换。
 // @author         Gemini(original: @pueka_3)
 // @match          https://twitter.com/*
 // @match          https://x.com/*
@@ -18,6 +18,7 @@
 (function () {
   'use strict';
 
+  const CONTAINER_ID = 'tm-preview-container';
   const PREVIEW_ID = 'tm-hover-preview';
   const BORDER_PX = 2;
 
@@ -26,53 +27,65 @@
   let currentIndex = 0;
   let wheelBind = false;
 
-  // ───────────────────────────────────────── Styles (Modified for Right Side)
+  // ───────────────────────────────────────── Styles (Container Layout)
   GM_addStyle(`
-    #${PREVIEW_ID} {
+    #${CONTAINER_ID} {
+      /* 固定容器位置：右侧居中 */
       position: fixed;
-      top: 50%;
-      /* 核心修改：不再居中，而是固定在右侧 */
-      left: auto;
-      right: 100px; 
-      /* 核心修改：垂直居中，水平方向不移动 */
-      transform: translateY(-50%);
+      top: 0;
+      right: 0;
+      width: 40vw; /* 限制容器宽度为屏幕宽度的 40%，可按需调整（如 600px） */
+      max-width: 600px; /* 最大宽度限制 */
+      height: 100vh;
       
-      /* 核心修改：尺寸限制 */
-      /* 强制限制最大宽度为1200px，防止orig大图溢出 */
-      max-width: 1200px !important; 
-      max-height: 98vh !important;
+      /* Flex布局使内部图片垂直居中 */
+      display: none; /* 默认隐藏 */
+      align-items: center;
+      justify-content: center;
       
-      /* 确保宽高自适应 */
-      width: auto !important; 
-      height: auto !important;
+      z-index: 999999;
+      pointer-events: none; /* 点击穿透 */
       
-      /* 重置可能干扰的最小尺寸 */
-      min-width: 0 !important;
-      min-height: 0 !important;
+      /* 容器本身的过渡效果 */
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+      background: transparent; /* 容器背景透明 */
+    }
+
+    #${PREVIEW_ID} {
+      /* 图片在容器内自适应 */
+      display: block;
+      max-width: 95%;  /* 留出一点边距 */
+      max-height: 95vh; 
+      width: auto;
+      height: auto;
+      object-fit: contain; /* 保持比例缩放 */
       
-      /* 防止边框撑大尺寸 */
-      box-sizing: border-box !important;
-      
+      box-sizing: border-box;
       border: ${BORDER_PX}px solid #fff;
       box-shadow: 0 0 12px rgba(0, 0, 0, .7);
-      z-index: 999999;
-      pointer-events: none;
-      display: none;
       background: #000;
-      opacity: 0;
-      transition: opacity .15s ease-out;
     }
   `);
 
   // ──────────────────────────────────────── Helpers
   function ensurePreview() {
-    let el = document.getElementById(PREVIEW_ID);
-    if (!el) {
-      el = document.createElement('img');
-      el.id = PREVIEW_ID;
-      document.body.appendChild(el);
+    let container = document.getElementById(CONTAINER_ID);
+    let img = document.getElementById(PREVIEW_ID);
+
+    if (!container) {
+      container = document.createElement('div');
+      container.id = CONTAINER_ID;
+      document.body.appendChild(container);
     }
-    return el;
+
+    if (!img) {
+      img = document.createElement('img');
+      img.id = PREVIEW_ID;
+      container.appendChild(img);
+    }
+    
+    return { container, img };
   }
 
   /** Convert thumbnail URL to original quality */
@@ -135,24 +148,24 @@
 
     const direction = e.deltaY > 0 ? 1 : -1;
 
-    // 边界检查：第一张向上滚，或最后一张向下滚 -> 允许网页滚动，不切换
+    // 边界检查
     if (currentIndex === 0 && direction === -1) return;
     if (currentIndex === currentGallery.length - 1 && direction === 1) return;
 
-    // 否则阻止网页滚动，切换图片
     e.preventDefault();
 
     currentIndex += direction;
     const nextSrc = currentGallery[currentIndex];
 
-    const preview = ensurePreview();
-    preview.style.opacity = '0';
+    const { container, img } = ensurePreview();
+    
+    // 切换图片时的简单闪烁效果（可选）
+    // img.style.opacity = '0.5';
 
     const buffer = new Image();
     buffer.onload = () => {
-      preview.src = buffer.src;
-      // void preview.offsetWidth; // 这里的重绘对于连续切图不是必须的，去掉可减少闪烁
-      preview.style.opacity = '1';
+      img.src = buffer.src;
+      // img.style.opacity = '1';
     };
     buffer.src = nextSrc;
   }
@@ -172,41 +185,42 @@
 
   // ───────────────────────────────────────── Events
   function showPreview(e) {
-    const img = /** @type {HTMLImageElement} */ (e.currentTarget);
+    const targetImg = /** @type {HTMLImageElement} */ (e.currentTarget);
 
-    if (isVideoContext(img)) { hidePreview(); return; }
+    if (isVideoContext(targetImg)) { hidePreview(); return; }
 
-    const src = toOrig(img.src);
+    const src = toOrig(targetImg.src);
     if (!isPhotoUrl(src)) { hidePreview(); return; }
 
-    currentGallery = collectGallery(img);
+    currentGallery = collectGallery(targetImg);
     currentIndex = currentGallery.indexOf(src);
     if (currentIndex === -1) currentIndex = 0;
 
-    const preview = ensurePreview();
+    const { container, img } = ensurePreview();
 
     const buffer = new Image();
     buffer.onload = () => {
-      preview.src = buffer.src;
-      preview.style.display = 'block';
-      // 强制重绘以触发transition
-      void preview.offsetWidth;
-      preview.style.opacity = '1';
+      img.src = buffer.src;
+      container.style.display = 'flex'; // 使用flex布局
+      // 强制重绘
+      void container.offsetWidth;
+      container.style.opacity = '1';
       bindWheel();
     };
     buffer.src = src;
 
-    // 加载过程中先隐藏旧图
-    preview.style.opacity = '0';
+    // 如果容器是隐藏的，确保开始时opacity为0
+    if (container.style.display === 'none') {
+        container.style.opacity = '0';
+    }
   }
 
   function hidePreview() {
-    const p = document.getElementById(PREVIEW_ID);
-    if (p) {
-      p.style.opacity = '0';
-      // 使用 once: true 防止多次绑定堆叠
-      p.addEventListener('transitionend', () => { 
-          if (p.style.opacity === '0') p.style.display = 'none'; 
+    const container = document.getElementById(CONTAINER_ID);
+    if (container) {
+      container.style.opacity = '0';
+      container.addEventListener('transitionend', () => { 
+          if (container.style.opacity === '0') container.style.display = 'none'; 
       }, { once: true });
     }
     unbindWheel();
