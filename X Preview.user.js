@@ -4,6 +4,8 @@
 // @name:zh-CN     X 图片悬停预览 (右侧固定版)
 // @namespace      https://github.com/yourname/TwitterImageHoverPreview
 // @version        1.1
+// @updateURL      https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
+// @downloadURL    https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
 // @description    大屏专用：悬停图片时，在屏幕右侧（距右100px）显示原图预览。高度自适应占满屏幕，宽度最大1200px。支持滚轮切换。
 // @author         @pueka_3 & Gemini
 // @match          https://twitter.com/*
