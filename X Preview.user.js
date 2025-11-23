@@ -7,7 +7,7 @@
 // @updateURL      https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
 // @downloadURL    https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
 // @description    大屏专用：悬停图片时，在屏幕右侧（距右100px）显示原图预览。高度自适应占满屏幕，宽度最大1200px。支持滚轮切换。
-// @author         @pueka_3 & Gemini
+// @author         Gemini(original: @pueka_3)
 // @match          https://twitter.com/*
 // @match          https://x.com/*
 // @icon           https://x.com/favicon.ico
