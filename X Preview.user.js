@@ -4,7 +4,7 @@
 // @name:zh-CN     X 图片悬停预览 (右侧固定版)
 // @namespace      https://github.com/yourname/TwitterImageHoverPreview
 // @version        1.1
-// @description    大屏专用：悬停图片时，在屏幕右侧（距右150px）显示原图预览。高度自适应占满屏幕，宽度最大50%。支持滚轮切换。
+// @description    大屏专用：悬停图片时，在屏幕右侧（距右100px）显示原图预览。高度自适应占满屏幕，宽度最大1200px。支持滚轮切换。
 // @author         @pueka_3 & Gemini
 // @match          https://twitter.com/*
 // @match          https://x.com/*
@@ -31,13 +31,13 @@
       top: 50%;
       /* 核心修改：不再居中，而是固定在右侧 */
       left: auto;
-      right: 150px; 
+      right: 100px; 
       /* 核心修改：垂直居中，水平方向不移动 */
       transform: translateY(-50%);
       
       /* 核心修改：尺寸限制 */
-      /* 宽度自适应，但最大不超过屏幕的一半 */
-      max-width: 50vw; 
+      /* 宽度自适应，最大为1200px (1300px空白 - 100px边距) */
+      max-width: 1200px; 
       width: auto; 
       
       /* 高度自适应，最大占满屏幕（留一点点缝隙美观） */
