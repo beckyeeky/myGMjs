@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Twitter Screenshot Button
-// @namespace    http://tampermonkey.net/
-// @version      0.5
-// @description  Add screenshot button next to share button on Twitter/X
-// @author       You
+// @namespace    https://github.com/beckyeeky/myGMjs
+// @version      0.6
+// @description  Add a screenshot button next to the share button on Twitter/X
+// @author       beckyeeky
 // @match        https://twitter.com/*
 // @match        https://x.com/*
 // @grant        none
@@ -13,222 +13,228 @@
 (function() {
     'use strict';
 
-    const debug = (msg) => {
-        console.log(`[Screenshot Button Debug] ${msg}`);
+    const STYLE_ID = 'tm-screenshot-button-style';
+    const BUTTON_CLASS = 'tm-screenshot-btn';
+    const BUTTON_CONTAINER_CLASS = 'tm-screenshot-btn-container';
+
+    const debug = (msg, ...args) => {
+        console.log('[Screenshot Button]', msg, ...args);
     };
 
-    // 添加文字优化的CSS
-    const style = document.createElement('style');
-    style.textContent = `
-        .screenshot-container * {
-            -webkit-font-smoothing: antialiased !important;
-            -moz-osx-font-smoothing: grayscale !important;
-            text-rendering: optimizeLegibility !important;
-        }
-    `;
-    document.head.appendChild(style);
+    function injectStyles() {
+        if (document.getElementById(STYLE_ID)) return;
 
-    function addScreenshotButton(tweetElement) {
-        if (tweetElement.querySelector('.screenshot-btn')) return;
+        const style = document.createElement('style');
+        style.id = STYLE_ID;
+        style.textContent = `
+            .${BUTTON_CONTAINER_CLASS} {
+                display: flex;
+                align-items: center;
+            }
 
-        const buttonGroup = tweetElement.querySelector('[role="group"]');
-        if (!buttonGroup) {
-            debug('Button group not found');
+            .${BUTTON_CLASS} {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 34px;
+                height: 34px;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                border-radius: 9999px;
+                background: transparent;
+                color: rgb(83, 100, 113);
+                cursor: pointer;
+                transition: background-color 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+            }
+
+            .${BUTTON_CLASS}:hover {
+                background: rgba(29, 155, 240, 0.1);
+                color: rgb(29, 155, 240);
+            }
+
+            .${BUTTON_CLASS}[data-busy="1"] {
+                opacity: 0.5;
+                pointer-events: none;
+            }
+
+            .tm-screenshot-capture * {
+                -webkit-font-smoothing: antialiased !important;
+                -moz-osx-font-smoothing: grayscale !important;
+                text-rendering: optimizeLegibility !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    function waitForImages(root) {
+        const imagePromises = Array.from(root.querySelectorAll('img')).map((img) => {
+            if (img.complete) return Promise.resolve();
+
+            return new Promise((resolve) => {
+                const done = () => resolve();
+                img.addEventListener('load', done, { once: true });
+                img.addEventListener('error', done, { once: true });
+                setTimeout(done, 5000);
+            });
+        });
+
+        return Promise.allSettled(imagePromises);
+    }
+
+    function downloadBlob(blob) {
+        if (!blob) throw new Error('Canvas blob generation failed');
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `tweet-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function captureTweet(button, buttonGroup) {
+        const tweetContainer = buttonGroup.closest('article');
+        if (!tweetContainer) {
+            debug('Tweet container not found');
             return;
         }
 
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'css-175oi2r r-18u37iz r-1h0z5md r-1wron08';
+        let captureContainer = null;
+        button.dataset.busy = '1';
+
+        try {
+            captureContainer = document.createElement('div');
+            captureContainer.className = 'tm-screenshot-capture';
+            captureContainer.style.cssText = `
+                position: fixed;
+                left: -99999px;
+                top: 0;
+                padding: 20px;
+                background: white;
+                width: ${tweetContainer.offsetWidth}px;
+                z-index: -1;
+            `;
+
+            const clone = tweetContainer.cloneNode(true);
+            clone.style.backgroundColor = 'white';
+            clone.style.colorScheme = 'light';
+
+            captureContainer.appendChild(clone);
+            document.body.appendChild(captureContainer);
+
+            clone.querySelectorAll('[role="group"], .'.concat(BUTTON_CLASS)).forEach((el) => {
+                el.remove();
+            });
+
+            await waitForImages(clone);
+
+            const canvas = await html2canvas(clone, {
+                backgroundColor: '#ffffff',
+                scale: Math.min(window.devicePixelRatio || 2, 3),
+                logging: false,
+                allowTaint: false,
+                useCORS: true,
+                imageTimeout: 0,
+                removeContainer: true,
+                ignoreElements: (element) => {
+                    return element.classList?.contains(BUTTON_CLASS) || element.dataset?.screenshotIgnore === '1';
+                },
+                onclone: (clonedDoc) => {
+                    const clonedArticle = clonedDoc.querySelector('article');
+                    if (clonedArticle) {
+                        clonedArticle.style.transform = 'scale(1)';
+                        clonedArticle.style.colorScheme = 'light';
+                    }
+                }
+            });
+
+            const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png', 1.0));
+            downloadBlob(blob);
+            debug('Screenshot downloaded');
+        } catch (error) {
+            debug('Screenshot failed', error);
+            console.error('Screenshot failed:', error);
+            alert('截图失败，请刷新页面后重试');
+        } finally {
+            if (captureContainer?.parentNode) {
+                captureContainer.parentNode.removeChild(captureContainer);
+            }
+            delete button.dataset.busy;
+        }
+    }
+
+    function createButton(buttonGroup) {
+        const container = document.createElement('div');
+        container.className = BUTTON_CONTAINER_CLASS;
+        container.dataset.screenshotIgnore = '1';
 
         const button = document.createElement('button');
-        button.className = 'screenshot-btn css-175oi2r r-1777fci r-bt1l66 r-bztko3 r-lrvibr r-1loqt21 r-1ny4l3l';
-        button.setAttribute('role', 'button');
+        button.className = BUTTON_CLASS;
+        button.type = 'button';
         button.setAttribute('aria-label', '截图');
-        button.setAttribute('type', 'button');
-        button.style.cursor = 'pointer';
-
-        const contentContainer = document.createElement('div');
-        contentContainer.className = 'css-146c3p1 r-bcqeeo r-1ttztb7 r-qvutc0 r-37j5jr r-a023e6 r-rjixqe r-16dba41 r-1awozwy r-6koalj r-1h0z5md r-o7ynqc r-clp7b1 r-3s2u2q';
-        contentContainer.setAttribute('dir', 'ltr');
-        contentContainer.style.cssText = 'color: rgb(83, 100, 113); padding: 8px;';
-
-        contentContainer.innerHTML = `
-            <div class="css-175oi2r r-xoduu5">
-                <svg viewBox="0 0 24 24" width="18" height="18" class="r-4qtqp9 r-yyyyoo r-dnmrzs r-bnwqim r-1plcrui r-lrvibr r-1xvli5t r-1hdv0qi">
-                    <path fill="currentColor" d="M14.12 4l1.83 2H20v12H4V6h4.05l1.83-2h4.24M15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2zm-3 7c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z"></path>
-                </svg>
-            </div>
+        button.dataset.screenshotIgnore = '1';
+        button.innerHTML = `
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path fill="currentColor" d="M14.12 4l1.83 2H20v12H4V6h4.05l1.83-2h4.24M15 2H9L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2zm-3 7c1.65 0 3 1.35 3 3s-1.35 3-3 3-3-1.35-3-3 1.35-3 3-3m0-2c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z"></path>
+            </svg>
         `;
-
-        button.appendChild(contentContainer);
-        buttonContainer.appendChild(button);
 
         button.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
-
-            debug('Screenshot button clicked');
-
-            const tweetContainer = buttonGroup.closest('article');
-            if (!tweetContainer) {
-                debug('Tweet container not found');
-                return;
-            }
-
-            try {
-                debug('Starting screenshot process');
-                button.style.opacity = '0.5';
-
-                // 创建容器并应用优化样式
-                const container = document.createElement('div');
-                container.className = 'screenshot-container';
-                container.style.cssText = `
-                    position: fixed;
-                    left: -9999px;
-                    top: 0;
-                    padding: 20px;
-                    background: white;
-                    width: ${tweetContainer.offsetWidth}px;
-                `;
-
-                // 克隆并优化
-                const clone = tweetContainer.cloneNode(true);
-
-                // 应用文字渲染优化
-                clone.style.cssText = `
-                    font-smooth: always;
-                    -webkit-font-smoothing: antialiased;
-                    -moz-osx-font-smoothing: grayscale;
-                    text-rendering: optimizeLegibility;
-                    transform-origin: top left;
-                    background-color: white;
-                `;
-
-                // 处理所有文本元素
-                clone.querySelectorAll('*').forEach(el => {
-                    if (el.textContent && el.textContent.trim()) {
-                        el.style.cssText += `
-                            font-smooth: always;
-                            -webkit-font-smoothing: antialiased;
-                            -moz-osx-font-smoothing: grayscale;
-                            text-rendering: optimizeLegibility;
-                        `;
-                    }
-                });
-
-                container.appendChild(clone);
-                document.body.appendChild(container);
-
-                // 移除不需要的元素
-                clone.querySelectorAll('[role="group"]').forEach(el => {
-                    el.style.display = 'none';
-                });
-
-                // 等待图片加载
-                await Promise.all(Array.from(clone.querySelectorAll('img')).map(img => {
-                    if (img.complete) return Promise.resolve();
-                    return new Promise((resolve, reject) => {
-                        img.onload = resolve;
-                        img.onerror = reject;
-                        setTimeout(reject, 5000);
-                    });
-                }));
-
-                // 截图配置
-                const options = {
-                    backgroundColor: null,
-                    scale: 3, // 增加scale以提高文字清晰度
-                    logging: true,
-                    allowTaint: false,
-                    useCORS: true,
-                    imageTimeout: 0,
-                    removeContainer: true,
-                    fontSmooth: true, // 启用字体平滑
-                    letterRendering: true, // 启用字母渲染优化
-                    ignoreElements: (element) => {
-                        return element.tagName === 'BUTTON' ||
-                               element.getAttribute('role') === 'button' ||
-                               element.classList.contains('screenshot-btn');
-                    },
-                    onclone: (clonedDoc) => {
-                        const clonedElement = clonedDoc.querySelector('article');
-                        if (clonedElement) {
-                            clonedElement.style.transform = 'scale(1)';
-                            clonedElement.style.colorScheme = 'light';
-                        }
-                    }
-                };
-
-                const canvas = await html2canvas(clone, options);
-                debug('Screenshot captured');
-
-                document.body.removeChild(container);
-
-                // 使用更高质量的PNG设置
-                canvas.toBlob((blob) => {
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `tweet-${Date.now()}.png`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-
-                    setTimeout(() => {
-                        URL.revokeObjectURL(url);
-                        button.style.opacity = '1';
-                    }, 100);
-                }, 'image/png', 1.0);
-
-                debug('Screenshot downloaded');
-
-            } catch (error) {
-                debug('Error during screenshot: ' + error.message);
-                console.error('Screenshot failed:', error);
-                button.style.opacity = '1';
-                alert('截图失败，请刷新页面后重试');
-            }
+            if (button.dataset.busy === '1') return;
+            await captureTweet(button, buttonGroup);
         });
 
-        button.addEventListener('mouseover', () => {
-            button.style.backgroundColor = 'rgba(29, 155, 240, 0.1)';
-        });
-        button.addEventListener('mouseout', () => {
-            button.style.backgroundColor = 'transparent';
-        });
+        container.appendChild(button);
+        return container;
+    }
 
-        buttonGroup.appendChild(buttonContainer);
-        debug('Screenshot button added successfully');
+    function addScreenshotButton(tweetElement) {
+        if (!(tweetElement instanceof HTMLElement)) return;
+        if (tweetElement.querySelector(`.${BUTTON_CLASS}`)) return;
+
+        const buttonGroup = tweetElement.querySelector('[role="group"]');
+        if (!buttonGroup) return;
+
+        buttonGroup.appendChild(createButton(buttonGroup));
+    }
+
+    function processNode(node) {
+        if (!(node instanceof HTMLElement)) return;
+
+        if (node.matches('article')) {
+            addScreenshotButton(node);
+        }
+
+        node.querySelectorAll?.('article').forEach(addScreenshotButton);
     }
 
     function init() {
-        debug('Initializing screenshot button script');
+        injectStyles();
+        document.querySelectorAll('article').forEach(addScreenshotButton);
 
         const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === 1) {
-                        const tweets = node.querySelectorAll('article');
-                        tweets.forEach(addScreenshotButton);
-                    }
-                });
-            });
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
+                    processNode(node);
+                }
+            }
         });
 
         observer.observe(document.body, {
             childList: true,
             subtree: true
         });
-
-        document.querySelectorAll('article').forEach(addScreenshotButton);
-        debug('Initialization completed');
     }
 
     if (typeof html2canvas === 'undefined') {
-        debug('html2canvas not loaded, waiting for it...');
+        debug('html2canvas not loaded, waiting for it');
         const checkInterval = setInterval(() => {
             if (typeof html2canvas !== 'undefined') {
-                debug('html2canvas loaded');
                 clearInterval(checkInterval);
                 init();
             }
