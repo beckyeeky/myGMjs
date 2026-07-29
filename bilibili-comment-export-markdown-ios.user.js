@@ -31,6 +31,19 @@
   function clean(v) { return String(v || '').replace(/\s+/g, ' ').trim(); }
   function esc(v) { return clean(v).replace(/([\\`*_{}\[\]<>])/g, '\\$1'); }
   function date(ts) { return ts ? new Date(ts * 1000).toLocaleString('zh-CN', { hour12: false }) : ''; }
+  function isMobilePage() {
+    const uaMobile = /iPhone|iPod|Android.*Mobile/i.test(navigator.userAgent);
+    const narrow = Math.min(window.innerWidth, screen.width) < 700;
+    const mobileDom = Boolean(document.querySelector('.m-header, .m-navbar, #app .m-container'));
+    return uaMobile || (narrow && mobileDom);
+  }
+  function showDesktopHint() {
+    if (!isMobilePage() || sessionStorage.getItem('bce-desktop-hint')) return;
+    const box = document.createElement('section'); box.id = 'bce-desktop-hint';
+    box.innerHTML = '<button class="bce-close" type="button" aria-label="关闭提示">×</button><strong>建议切换为桌面网站</strong><p>当前似乎是移动版页面。导出仍可尝试，但桌面版通常更稳定。</p><p><b>Safari：</b>点地址栏左侧的 <b>「aA」</b> → <b>「请求桌面网站」</b>，页面刷新后再导出。</p>';
+    box.querySelector('.bce-close').onclick = () => { box.remove(); sessionStorage.setItem('bce-desktop-hint', '1'); };
+    document.body.append(box);
+  }
 
   async function api(url) {
     const r = await fetch(url, { credentials: 'include' });
@@ -108,8 +121,9 @@
   }
   function mount() {
     if ($('#bce-button')) return;
-    const style = document.createElement('style'); style.textContent = `#bce-button{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));z-index:2147483646;border:0;border-radius:24px;background:#00aeec;color:#fff;padding:13px 17px;font:600 15px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 5px 18px #0004}#bce-button:disabled{opacity:.65}#bce-toast{position:fixed;z-index:2147483647;left:50%;bottom:82px;transform:translate(-50%,20px);width:min(330px,calc(100vw - 32px));padding:11px 14px;border-radius:11px;color:white;font:14px -apple-system,BlinkMacSystemFont,sans-serif;text-align:center;opacity:0;pointer-events:none;transition:.2s}#bce-toast.show{opacity:1;transform:translate(-50%,0)}`; document.head.append(style);
+    const style = document.createElement('style'); style.textContent = `#bce-button{position:fixed;right:max(16px,env(safe-area-inset-right));bottom:max(24px,env(safe-area-inset-bottom));z-index:2147483646;border:0;border-radius:24px;background:#00aeec;color:#fff;padding:13px 17px;font:600 15px -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 5px 18px #0004}#bce-button:disabled{opacity:.65}#bce-toast{position:fixed;z-index:2147483647;left:50%;bottom:82px;transform:translate(-50%,20px);width:min(330px,calc(100vw - 32px));padding:11px 14px;border-radius:11px;color:white;font:14px -apple-system,BlinkMacSystemFont,sans-serif;text-align:center;opacity:0;pointer-events:none;transition:.2s}#bce-toast.show{opacity:1;transform:translate(-50%,0)}#bce-desktop-hint{position:fixed;z-index:2147483646;left:16px;right:16px;bottom:max(90px,calc(env(safe-area-inset-bottom) + 66px));padding:14px 38px 12px 14px;border-radius:13px;background:#fff8e6;color:#5a4300;font:14px/1.45 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 5px 20px #0003}#bce-desktop-hint strong{font-size:15px}#bce-desktop-hint p{margin:5px 0 0}.bce-close{position:absolute;right:9px;top:7px;border:0;background:transparent;color:#765;font-size:24px;line-height:24px}`; document.head.append(style);
     const b = document.createElement('button'); b.id = 'bce-button'; b.textContent = '导出 Markdown'; b.addEventListener('click', exportMarkdown); document.body.append(b);
+    showDesktopHint();
   }
   mount();
 })();
