@@ -1,9 +1,12 @@
 // ==UserScript==
 // @name         Twitter Screenshot Button
 // @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Screenshot%20Button.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Screenshot%20Button.user.js
 // @version      0.6
 // @description  Add a screenshot button next to the share button on Twitter/X
-// @author       beckyeeky
 // @match        https://twitter.com/*
 // @match        https://x.com/*
 // @grant        none

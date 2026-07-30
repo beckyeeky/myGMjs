@@ -1,9 +1,12 @@
 // ==UserScript==
 // @name         Replace na.finalfantasyxiv.com with jp.finalfantasyxiv.com
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Replace%20na.finalfantasyxiv.com%20with%20jp.finalfantasyxiv.com.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Replace%20na.finalfantasyxiv.com%20with%20jp.finalfantasyxiv.com.user.js
 // @version      1.0
 // @description  Replace na.finalfantasyxiv.com with jp.finalfantasyxiv.com on ffxiv.eorzeacollection.com
-// @author       You
 // @match        https://ffxiv.eorzeacollection.com/*
 // @grant        none
 // ==/UserScript==

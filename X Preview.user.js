@@ -2,17 +2,17 @@
 // @name           X（旧Twitter）画像プレビュー (Right Side Edition)
 // @name:en        X Image Hover Preview (Right Side)
 // @name:zh-CN     X 图片悬停预览 (右侧固定版)
-// @namespace      https://github.com/beckyeeky/myGMjs
+// @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Preview.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Preview.user.js
 // @version        1.4
-// @updateURL      https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
-// @downloadURL    https://github.com/beckyeeky/myGMjs/raw/refs/heads/main/X%20Preview.user.js
 // @description    大屏专用：悬停图片时，在屏幕右侧显示固定容器预览。仅在悬停媒体时响应滚轮切换。
-// @author         beckyeeky (original: @pueka_3)
 // @match          https://twitter.com/*
 // @match          https://x.com/*
 // @icon           https://x.com/favicon.ico
 // @grant          GM_addStyle
-// @license MIT
 // ==/UserScript==
 
 (function () {

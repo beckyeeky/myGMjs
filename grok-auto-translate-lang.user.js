@@ -2,12 +2,15 @@
 // @name         X / Twitter — Grok 自动翻译目标语言
 // @name:zh-CN   X / Twitter — Grok 自动翻译目标语言
 // @name:en      X / Twitter — Grok Auto-Translate Target Language
-// @namespace    https://greasyfork.org/
+// @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/grok-auto-translate-lang.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/grok-auto-translate-lang.user.js
 // @version      1.0.0
 // @description  自定义 X/Twitter 上 Grok AI 自动翻译的目标语言。通过拦截翻译 API 请求修改 dst_lang 参数，让你选择翻译到任意语言。
 // @description:zh-CN 自定义 X/Twitter 上 Grok AI 自动翻译的目标语言。通过拦截翻译 API 请求修改 dst_lang 参数，让你选择翻译到任意语言。
 // @description:en  Customize the target language for Grok AI auto-translations on X/Twitter. Intercepts translation API requests and modifies the dst_lang parameter, allowing you to translate into any language.
-// @author       Minis
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @match        https://grok.com/*
@@ -15,7 +18,6 @@
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 // @run-at       document-start
-// @license      MIT
 // ==/UserScript==
 
 (function () {

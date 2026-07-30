@@ -1,14 +1,14 @@
 // ==UserScript==
 // @name         Change Image Quality to Orig
 // @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
 // @version      1.0
 // @description  Change image quality to orig on x.com
-// @author       beckyeeky
 // @match        https://x.com/*
 // @grant        none
-// @downloadURL https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
-// @updateURL   https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
-// @license      MIT
 // ==/UserScript==
 
 (function() {

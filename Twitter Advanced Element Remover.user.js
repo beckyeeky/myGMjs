@@ -1,9 +1,12 @@
 // ==UserScript==
 // @name         Twitter Advanced Element Remover
 // @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Advanced%20Element%20Remover.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Advanced%20Element%20Remover.user.js
 // @version      1.1
 // @description  Hide selected Twitter/X layout elements with safer defaults
-// @author       beckyeeky
 // @match        https://twitter.com/*
 // @match        https://x.com/*
 // @match        https://pro.twitter.com/*

@@ -1,10 +1,12 @@
 // ==UserScript==
 // @name         X 图片瀑布流画廊（稳定布局 + 自动加载）
-// @namespace    minis.x-waterfall
+// @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @version      0.3.1
 // @description  汇总当前 X 时间线图片；固定分栏、已加入卡片不重排，并可自动滚动加载。
-// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
-// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @grant        none

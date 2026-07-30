@@ -1,15 +1,15 @@
 // ==UserScript==
 // @name         Google Sheets HTML View Class Remover
 // @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Google%20Sheets%20HTML%20View%20Class%20Remover.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Google%20Sheets%20HTML%20View%20Class%20Remover.user.js
 // @version      1.0
 // @description  Removes specific classes from Google Sheets HTML view to enable selection
-// @author       beckyeeky
 // @match        https://docs.google.com/spreadsheets/d/*/htmlview*
 // @run-at       document-idle
 // @grant        none
-// @downloadURL https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Google%20Sheets%20HTML%20View%20Class%20Remover.user.js
-// @updateURL   https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Google%20Sheets%20HTML%20View%20Class%20Remover.user.js
-// @license      MIT
 // ==/UserScript==
 
 (function() {

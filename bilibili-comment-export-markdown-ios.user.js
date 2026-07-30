@@ -1,14 +1,16 @@
 // ==UserScript==
 // @name         B站评论导出 Markdown（iOS Safari）
 // @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/bilibili-comment-export-markdown-ios.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/bilibili-comment-export-markdown-ios.user.js
 // @version      1.0.0
 // @description  导出当前 B 站视频全部评论及楼中楼为 Markdown；针对 iPhone/iPad Safari 优化，优先调出系统分享/存储。
-// @author       beckyeeky
 // @match        https://www.bilibili.com/video/*
 // @match        https://www.bilibili.com/list/*
 // @grant        none
 // @run-at       document-idle
-// @license      MIT
 // ==/UserScript==
 
 (() => {

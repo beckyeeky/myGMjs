@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name         X (Twitter) Force Left (No Color Change)
 // @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js
 // @version      2.1
 // @description  只负责将X界面移到左侧，不修改背景颜色
-// @author       beckyeeky
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @run-at       document-start
 // @grant        GM_addStyle
-// @downloadURL https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js
-// @updateURL   https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js
-// @license      MIT
 // ==/UserScript==
 
 (function() {

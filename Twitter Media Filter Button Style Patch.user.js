@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name         Twitter Media Filter Button Style Patch V4
 // @namespace    https://github.com/beckyeeky/myGMjs
+// @author       beckyeeky
+// @license      MIT
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js
+// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js
 // @version      0.4
 // @description  Modifies the style of the button created by the Twitter media-only filter toggle script (v0.17)
-// @author       beckyeeky
 // @match        https://*.twitter.com/*
 // @match        https://*.x.com/*
 // @run-at       document-idle
 // @grant        none
-// @downloadURL https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js
-// @updateURL   https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js
-// @license      MIT
 // ==/UserScript==
 (function() {
     'use strict';
