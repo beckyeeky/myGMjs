@@ -6,8 +6,8 @@
 // @author       beckyeeky
 // @match        https://ff14-fc.com/*
 // @grant        none
-// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/FF14%20Equipment%20Term%20Translator-1.3.user.js
-// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/FF14%20Equipment%20Term%20Translator-1.3.user.js
+// @downloadURL https://raw.githubusercontent.com/beckyeeky/myGMjs/main/FF14%20Equipment%20Term%20Translator.user.js
+// @updateURL   https://raw.githubusercontent.com/beckyeeky/myGMjs/main/FF14%20Equipment%20Term%20Translator.user.js
 // @license      MIT
 // ==/UserScript==
 

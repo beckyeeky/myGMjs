@@ -8,8 +8,8 @@
 // @match        https://twitter.com/*
 // @run-at       document-start
 // @grant        GM_addStyle
-// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left-2.1.user.js
-// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left-2.1.user.js
+// @downloadURL https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js
+// @updateURL   https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js
 // @license      MIT
 // ==/UserScript==
 

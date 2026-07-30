@@ -6,8 +6,8 @@
 // @author       beckyeeky
 // @match        https://x.com/*
 // @grant        none
-// @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig-1.0.user.js
-// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig-1.0.user.js
+// @downloadURL https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
+// @updateURL   https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
 // @license      MIT
 // ==/UserScript==
 
