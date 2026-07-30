@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         X 图片瀑布流画廊（稳定布局 + 自动加载）
 // @namespace    minis.x-waterfall
-// @version      0.3.0
+// @version      0.3.1
 // @description  汇总当前 X 时间线图片；固定分栏、已加入卡片不重排，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
@@ -22,8 +22,8 @@
 #${ID}-button{position:fixed;right:20px;bottom:88px;z-index:2147483646;border:0;border-radius:999px;padding:11px 16px;background:#1d9bf0;color:#fff;font:600 14px system-ui,-apple-system,sans-serif;box-shadow:0 3px 14px #0008;cursor:pointer}
 #${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow-y:auto;background:#000d;padding:64px 14px 30px;box-sizing:border-box}#${ID}-panel.open{display:block}
 #${ID}-bar{position:fixed;inset:0 0 auto;height:54px;z-index:2;display:flex;align-items:center;gap:10px;padding:0 14px;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}
-#${ID}-grid{display:flex;align-items:flex-start;gap:10px;max-width:1600px;margin:auto}. ${ID}-column{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:10px}
-.${ID}-card{display:block;position:relative;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}. ${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease}. ${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:7px;bottom:7px;padding:4px 6px;border-radius:7px;background:#000a;color:#fff;font:11px system-ui,-apple-system,sans-serif;line-height:1}
+#${ID}-grid{display:flex;align-items:flex-start;gap:10px;width:100%;max-width:1600px;margin:auto}.${ID}-column{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:10px}
+.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:7px;bottom:7px;padding:4px 6px;border-radius:7px;background:#000a;color:#fff;font:11px system-ui,-apple-system,sans-serif;line-height:1}
 `;
   document.head.append(style);
 
