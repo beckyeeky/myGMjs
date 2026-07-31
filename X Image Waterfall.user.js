@@ -3,8 +3,8 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.1
-// @description  面向 Tampermonkey 的 X 图片瀑布流；使用请求级自动加载减少虚拟时间线闪屏，并改进 Like 可靠性。
+// @version      0.7.2
+// @description  面向 Tampermonkey 的 X 图片瀑布流；页面上下文请求级自动加载，不滚动底层时间线。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
@@ -15,16 +15,20 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 (() => {
   'use strict';
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, {once: true});
+  } else init();
+  function init() {
   const ID = 'minis-x-waterfall';
   let maxItems = Math.max(50, Math.min(1000, Number(GM_getValue('maxItems', 500)) || 500));
   const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const items = new Map();
   let opened = false, auto = false, autoTimer = null, mutationTimer = null, autoBusy = false;
-  let previousCount = 0, idleRounds = 0, columnCount = 0;
+  let previousCount = 0, idleRounds = 0, columnCount = 0, waitRounds = 0;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -167,32 +171,33 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   }
   async function autoStep() {
     if (!auto || autoBusy) return;
-    autoBusy = true;
+    const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
+    const ready = action && typeof action.loadMoreTimeline === 'function' && (!action.timelineReady || action.timelineReady());
+    if (!ready) {
+      waitRounds++;
+      autoButton.textContent = '等待时间线…';
+      // 绝不滚动底层页面。首次进入主页时，让 X 自己完成请求模板初始化。
+      if (waitRounds >= 20) { stopAuto(); autoButton.textContent = '未捕获时间线'; }
+      return;
+    }
+    waitRounds = 0; autoButton.textContent = '停止加载'; autoBusy = true;
     let added = 0;
     try {
-      const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
-      if (action && typeof action.loadMoreTimeline === 'function' && (!action.timelineReady || action.timelineReady())) {
-        added = addRemoteItems(await delayReject(action.loadMoreTimeline(), 12000, 'Timeline request timed out'));
-      } else {
-        // 请求模板尚未从 X 学到时，仅作一次无动画的小幅滚动，避免 scrollIntoView 触发虚拟列表闪屏。
-        window.scrollBy(0, Math.max(320, Math.round(innerHeight * .65)));
-        await new Promise(resolve => setTimeout(resolve, 700));
-        added = scan();
-      }
+      added = addRemoteItems(await delayReject(action.loadMoreTimeline(), 8000, 'Timeline request timed out'));
     } catch (_) { added = 0; }
     finally { autoBusy = false; }
     idleRounds = added ? 0 : idleRounds + 1;
     previousCount = items.size;
-    if (items.size >= maxItems || idleRounds >= 8) stopAuto();
+    if (items.size >= maxItems || idleRounds >= 12) stopAuto();
   }
-  function updateAutoLabel() { autoButton.textContent = auto ? '停止加载' : '自动加载'; }
-  function stopAuto() { auto = false; autoBusy = false; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
+  function updateAutoLabel() { autoButton.textContent = auto ? (waitRounds ? '等待时间线…' : '停止加载') : '自动加载'; }
+  function stopAuto() { auto = false; autoBusy = false; waitRounds = 0; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
   function toggleAuto() {
     if (auto) return stopAuto();
     if (items.size >= maxItems) { setCount(); return; }
-    auto = true; idleRounds = 0; previousCount = items.size; updateAutoLabel();
+    auto = true; idleRounds = 0; waitRounds = 0; previousCount = items.size; updateAutoLabel();
     autoStep();
-    autoTimer = setInterval(autoStep, 2600);
+    autoTimer = setInterval(autoStep, 900);
   }
   // The full-screen panel itself is the interaction barrier. Do not capture-stop events:
   // that would also stop Like/link handlers and X's own programmatic timeline refresh.
@@ -210,4 +215,5 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   const timelineRoot = document.querySelector('main[role="main"]') || document.querySelector('main') || document.body;
   new MutationObserver(() => { clearTimeout(mutationTimer); mutationTimer = setTimeout(scan, 400); }).observe(timelineRoot, {childList: true, subtree: true});
   scan();
+  }
 })();
