@@ -3,7 +3,7 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.5.4
+// @version      0.6.0
 // @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮、原推文链接，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
@@ -96,6 +96,16 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
       entry.mounted = true;
     }
   }
+  function addRemoteMedia(media) {
+    let added = 0;
+    for (const entry of (media || [])) {
+      if (!entry || !entry.src || !entry.href) continue;
+      const key = entry.src.replace(/([?&])name=[^&]*/i, '');
+      if (!items.has(key)) { items.set(key, {src: mediaURL(entry.src), href: entry.href, article: null, mounted: false}); added++; }
+    }
+    if (opened && added) mountNew();
+    setCount(); return added;
+  }
   function scan() {
     let added = 0;
     document.querySelectorAll('article').forEach(article => {
@@ -138,18 +148,31 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     if (last) last.scrollIntoView({block: 'end', behavior: 'auto'});
     else window.scrollBy({top: Math.round(innerHeight * .8), behavior: 'auto'});
   }
-  function stopAuto() { auto = false; clearInterval(autoTimer); autoTimer = null; autoButton.textContent = '自动加载'; }
+  async function apiStep() {
+    const action = window.__X_IMAGE_WATERFALL_ACTION__;
+    if (!action || !action.timelineReady || !action.timelineReady()) return null;
+    const media = await action.loadMoreTimeline();
+    return addRemoteMedia(media);
+  }
+  function updateAutoLabel(mode = '') { autoButton.textContent = auto ? `停止加载${mode}` : '自动加载'; }
+  function stopAuto() { auto = false; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
   function toggleAuto() {
     if (auto) return stopAuto();
-    auto = true; idleRounds = 0; previousCount = items.size; autoButton.textContent = '停止加载';
-    timelineStep();
-    autoTimer = setInterval(() => {
-      scan();
+    auto = true; idleRounds = 0; previousCount = items.size; updateAutoLabel('（准备中）');
+    let fallbackUsed = false;
+    const tick = async () => {
+      if (!auto) return;
+      let added = null;
+      try { added = await apiStep(); } catch (_) { added = null; }
+      if (added === null) {
+        // First use needs X to issue its HomeTimeline request once. Compatibility fallback only.
+        fallbackUsed = true; updateAutoLabel('（兼容模式）'); timelineStep(); scan();
+      } else updateAutoLabel('（无滚动）');
       idleRounds = items.size === previousCount ? idleRounds + 1 : 0;
       previousCount = items.size;
-      if (idleRounds >= 8) return stopAuto();
-      timelineStep();
-    }, 1400);
+      if (idleRounds >= (fallbackUsed ? 8 : 4)) return stopAuto();
+    };
+    tick(); autoTimer = setInterval(tick, 1400);
   }
   // The full-screen panel itself is the interaction barrier. Do not capture-stop events:
   // that would also stop Like/link handlers and X's own programmatic timeline refresh.
