@@ -3,7 +3,7 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.6.3
+// @version      0.6.4
 // @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮、原推文链接，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
@@ -16,6 +16,7 @@
 (() => {
   'use strict';
   const ID = 'minis-x-waterfall';
+  const MAX_ITEMS = 500;
   const items = new Map();
   let opened = false, auto = false, autoTimer = null, mutationTimer = null;
   let previousCount = 0, idleRounds = 0, columnCount = 0;
@@ -24,7 +25,7 @@
   style.textContent = `
 #${ID}-button{position:fixed;right:20px;bottom:88px;z-index:2147483646;border:0;border-radius:999px;padding:11px 16px;background:#1d9bf0;color:#fff;font:600 14px system-ui,-apple-system,sans-serif;box-shadow:0 3px 14px #0008;cursor:pointer}
 html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
-#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow:hidden;isolation:isolate;background:#000;color:#e7e9ea;box-sizing:border-box}#${ID}-panel.open{display:flex;flex-direction:column}
+#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow:hidden;isolation:isolate;background:#000;color:#e7e9ea;box-sizing:border-box;pointer-events:auto;touch-action:none}#${ID}-panel.open{display:flex;flex-direction:column}
 #${ID}-bar{position:sticky;top:0;flex:0 0 54px;width:100%;z-index:10;display:flex;align-items:center;gap:10px;padding:0 14px;box-sizing:border-box;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif;border-bottom:1px solid #2f3336;box-shadow:0 2px 8px #0008}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar .close{background:#2f3336;color:#e7e9ea}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}#${ID}-bar button:active{transform:scale(.96)}
 #${ID}-viewport{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#000;padding:10px 14px 30px;box-sizing:border-box}
 @media (max-width:600px){#${ID}-bar{flex-basis:52px;padding:0 10px;gap:7px}#${ID}-viewport{padding:8px 8px 20px}#${ID}-count{font-size:12px}#${ID}-bar button{padding:7px 9px}}
@@ -43,7 +44,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
 
   const mediaURL = url => url.replace(/([?&])name=[^&]*/i, '$1name=large');
   const columnsForWidth = () => innerWidth >= 1450 ? 5 : innerWidth >= 1100 ? 4 : innerWidth >= 700 ? 3 : 2;
-  function setCount() { counter.textContent = `${items.size} 张（已收集）`; launch.textContent = `图片瀑布流 (${items.size})`; }
+  function setCount() { counter.textContent = `${items.size}/${MAX_ITEMS} 张`; launch.textContent = `图片瀑布流 (${items.size})`; }
   function ensureColumns(force = false) {
     const needed = columnsForWidth();
     if (!force && grid.children.length === needed) return;
@@ -100,13 +101,14 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   function scan() {
     let added = 0;
     document.querySelectorAll('article').forEach(article => {
+      if (items.size >= MAX_ITEMS) return;
       const status = article.querySelector('a[href*="/status/"]');
       const href = status ? status.href : location.href;
       article.querySelectorAll('img').forEach(image => {
         const src = image.currentSrc || image.src || '';
         if (!/^https:\/\/pbs\.twimg\.com\/media\//.test(src)) return;
         const key = src.replace(/([?&])name=[^&]*/i, '');
-        if (!items.has(key)) { items.set(key, {src: mediaURL(src), href, article, mounted: false}); added++; }
+        if (items.size < MAX_ITEMS && !items.has(key)) { items.set(key, {src: mediaURL(src), href, article, mounted: false}); added++; }
       });
     });
     if (opened && added) mountNew();
@@ -143,6 +145,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   function stopAuto() { auto = false; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
   function toggleAuto() {
     if (auto) return stopAuto();
+    if (items.size >= MAX_ITEMS) { setCount(); return; }
     auto = true; idleRounds = 0; previousCount = items.size; updateAutoLabel();
     timelineStep();
     autoTimer = setInterval(() => {
@@ -150,7 +153,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
       scan();
       idleRounds = items.size === previousCount ? idleRounds + 1 : 0;
       previousCount = items.size;
-      if (idleRounds >= 8) return stopAuto();
+      if (items.size >= MAX_ITEMS || idleRounds >= 8) return stopAuto();
       // Let the gallery additions paint first, then start the next smooth background move.
       requestAnimationFrame(() => { if (auto) timelineStep(); });
     }, 1400);
