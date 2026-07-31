@@ -3,8 +3,8 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.0
-// @description  面向 Tampermonkey 的 X 图片瀑布流；支持持久化设置、菜单命令、插件原生开页和自动滚动加载。
+// @version      0.7.1
+// @description  面向 Tampermonkey 的 X 图片瀑布流；使用请求级自动加载减少虚拟时间线闪屏，并改进 Like 可靠性。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
@@ -23,7 +23,7 @@
   let maxItems = Math.max(50, Math.min(1000, Number(GM_getValue('maxItems', 500)) || 500));
   const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const items = new Map();
-  let opened = false, auto = false, autoTimer = null, mutationTimer = null;
+  let opened = false, auto = false, autoTimer = null, mutationTimer = null, autoBusy = false;
   let previousCount = 0, idleRounds = 0, columnCount = 0;
 
   const style = document.createElement('style');
@@ -35,7 +35,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
 #${ID}-viewport{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#000;padding:10px 14px 30px;box-sizing:border-box}
 @media (max-width:600px){#${ID}-bar{flex-basis:52px;padding:0 10px;gap:7px}#${ID}-viewport{padding:8px 8px 20px}#${ID}-count{font-size:12px}#${ID}-bar button{padding:7px 9px}}
 #${ID}-grid{display:flex;align-items:flex-start;gap:10px;width:100%;max-width:1600px;margin:auto}.${ID}-column{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:10px}
-.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease;pointer-events:none;user-select:none;-webkit-user-drag:none}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;border-radius:999px;background:#000b;color:#fff;font-size:16px;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like{position:absolute;left:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:999px;background:#000b;color:#fff;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like.active{color:#f91880;transform:scale(1.04)}.${ID}-like:disabled{cursor:default}
+.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease;pointer-events:none;user-select:none;-webkit-user-drag:none}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:6px;bottom:6px;z-index:3;display:flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;border:0;border-radius:999px;background:#000d;color:#fff;font-size:17px;line-height:1;text-decoration:none;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 1px 5px #0009}.${ID}-like{position:absolute;left:6px;bottom:6px;z-index:3;display:flex;align-items:center;justify-content:center;width:44px;height:44px;padding:0;border:0;border-radius:999px;background:#000d;color:#fff;font-size:21px;line-height:1;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;box-shadow:0 1px 5px #0009}.${ID}-like.active{color:#f91880;transform:scale(1.04)}.${ID}-like.pending{opacity:.8}.${ID}-like.error{color:#ffd400}.${ID}-like:disabled{cursor:wait}
 `;
   document.head.append(style);
 
@@ -65,26 +65,42 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
       (col.load + col.cards * 180) < (best.load + best.cards * 180) ? col : best
     );
   }
+  const delayReject = (promise, ms, message) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    Promise.resolve(promise).then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
+  });
+  function currentArticle(id) {
+    for (const article of document.querySelectorAll('article')) {
+      if (article.querySelector(`a[href*="/status/${id}"]`)) return article;
+    }
+    return null;
+  }
   async function like(entry, likeButton, event) {
     event.preventDefault(); event.stopPropagation();
-    if (likeButton.disabled) return;
+    if (likeButton.disabled || likeButton.classList.contains('active')) return;
     const id = (entry.href.match(/status(?:es)?\/(\d{5,25})/) || [])[1];
     if (!id) return;
-    likeButton.disabled = true; likeButton.textContent = '…'; likeButton.title = '正在喜欢';
-    let synced = false;
+    likeButton.disabled = true; likeButton.classList.remove('error'); likeButton.classList.add('pending');
+    likeButton.textContent = '…'; likeButton.title = '正在喜欢';
+    let synced = false, failure = null;
     try {
       const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
-      if (action && typeof action.like === 'function') { await action.like(id); synced = true; }
-    } catch (_) {}
-    if (!synced && entry.article) {
-      // Adapter 不可用或失败时，退回 X 页面上的原按钮。
-      const button = entry.article.querySelector('[data-testid="like"]');
+      if (!action || typeof action.like !== 'function') throw new Error('Like adapter unavailable');
+      const result = await delayReject(action.like(id), 10000, 'Like request timed out');
+      synced = !!result;
+    } catch (error) { failure = error; }
+    if (!synced) {
+      const article = currentArticle(id) || (entry.article && entry.article.isConnected ? entry.article : null);
+      const button = article && article.querySelector('[data-testid="like"]');
       if (button) { button.click(); synced = true; }
     }
+    likeButton.classList.remove('pending'); likeButton.disabled = false;
     if (synced) {
       likeButton.classList.add('active'); likeButton.textContent = '♥'; likeButton.title = '已喜欢';
     } else {
-      likeButton.textContent = '♡'; likeButton.title = '未能同步喜欢'; likeButton.disabled = false;
+      likeButton.classList.add('error'); likeButton.textContent = '♡';
+      likeButton.title = failure && /timed out/i.test(failure.message) ? '请求超时，点按重试' : '未能同步喜欢，点按重试';
+      setTimeout(() => likeButton.classList.remove('error'), 1600);
     }
   }
   function mountNew() {
@@ -139,30 +155,44 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     if (opened) { lockBackground(); ensureColumns(true); mountNew(); setCount(); }
     else { stopAuto(); unlockBackground(); }
   }
-  function timelineStep() {
-    // Keep X's virtual timeline moving even while the modal is open. The panel blocks user
-    // touch by covering the viewport, but we intentionally leave the document scrollable.
-    const articles = document.querySelectorAll('article');
-    const last = articles[articles.length - 1];
-    if (last) last.scrollIntoView({block: 'end', behavior: 'smooth'});
-    else window.scrollBy({top: Math.round(innerHeight * .8), behavior: 'smooth'});
+  function addRemoteItems(remoteItems) {
+    let added = 0;
+    for (const item of remoteItems || []) {
+      if (items.size >= maxItems || !item || !item.src || !item.href) break;
+      const key = item.src.replace(/([?&])name=[^&]*/i, '');
+      if (!items.has(key)) { items.set(key, {src: mediaURL(item.src), href: item.href, article: null, mounted: false}); added++; }
+    }
+    if (opened && added) mountNew();
+    setCount(); return added;
+  }
+  async function autoStep() {
+    if (!auto || autoBusy) return;
+    autoBusy = true;
+    let added = 0;
+    try {
+      const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
+      if (action && typeof action.loadMoreTimeline === 'function' && (!action.timelineReady || action.timelineReady())) {
+        added = addRemoteItems(await delayReject(action.loadMoreTimeline(), 12000, 'Timeline request timed out'));
+      } else {
+        // 请求模板尚未从 X 学到时，仅作一次无动画的小幅滚动，避免 scrollIntoView 触发虚拟列表闪屏。
+        window.scrollBy(0, Math.max(320, Math.round(innerHeight * .65)));
+        await new Promise(resolve => setTimeout(resolve, 700));
+        added = scan();
+      }
+    } catch (_) { added = 0; }
+    finally { autoBusy = false; }
+    idleRounds = added ? 0 : idleRounds + 1;
+    previousCount = items.size;
+    if (items.size >= maxItems || idleRounds >= 8) stopAuto();
   }
   function updateAutoLabel() { autoButton.textContent = auto ? '停止加载' : '自动加载'; }
-  function stopAuto() { auto = false; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
+  function stopAuto() { auto = false; autoBusy = false; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
   function toggleAuto() {
     if (auto) return stopAuto();
     if (items.size >= maxItems) { setCount(); return; }
     auto = true; idleRounds = 0; previousCount = items.size; updateAutoLabel();
-    timelineStep();
-    autoTimer = setInterval(() => {
-      if (!auto) return;
-      scan();
-      idleRounds = items.size === previousCount ? idleRounds + 1 : 0;
-      previousCount = items.size;
-      if (items.size >= maxItems || idleRounds >= 8) return stopAuto();
-      // Let the gallery additions paint first, then start the next smooth background move.
-      requestAnimationFrame(() => { if (auto) timelineStep(); });
-    }, 1400);
+    autoStep();
+    autoTimer = setInterval(autoStep, 2600);
   }
   // The full-screen panel itself is the interaction barrier. Do not capture-stop events:
   // that would also stop Like/link handlers and X's own programmatic timeline refresh.
@@ -177,6 +207,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   launch.onclick = () => openGallery(); panel.querySelector('.close').onclick = () => openGallery(false); autoButton.onclick = toggleAuto;
   addEventListener('keydown', e => { if (e.key === 'Escape') openGallery(false); });
   addEventListener('resize', () => { if (opened && columnsForWidth() !== columnCount) { ensureColumns(true); mountNew(); } });
-  new MutationObserver(() => { clearTimeout(mutationTimer); mutationTimer = setTimeout(scan, 250); }).observe(document.documentElement, {childList: true, subtree: true});
+  const timelineRoot = document.querySelector('main[role="main"]') || document.querySelector('main') || document.body;
+  new MutationObserver(() => { clearTimeout(mutationTimer); mutationTimer = setTimeout(scan, 400); }).observe(timelineRoot, {childList: true, subtree: true});
   scan();
 })();
