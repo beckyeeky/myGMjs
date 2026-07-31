@@ -3,20 +3,25 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.6.4
-// @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮、原推文链接，并可自动滚动加载。
+// @version      0.7.0
+// @description  面向 Tampermonkey 的 X 图片瀑布流；支持持久化设置、菜单命令、插件原生开页和自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
 // @match        https://x.com/*
 // @match        https://twitter.com/*
-// @grant        none
+// @grant        GM_openInTab
+// @grant        GM_registerMenuCommand
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        unsafeWindow
 // @run-at       document-idle
 // ==/UserScript==
 (() => {
   'use strict';
   const ID = 'minis-x-waterfall';
-  const MAX_ITEMS = 500;
+  let maxItems = Math.max(50, Math.min(1000, Number(GM_getValue('maxItems', 500)) || 500));
+  const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const items = new Map();
   let opened = false, auto = false, autoTimer = null, mutationTimer = null;
   let previousCount = 0, idleRounds = 0, columnCount = 0;
@@ -30,7 +35,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
 #${ID}-viewport{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#000;padding:10px 14px 30px;box-sizing:border-box}
 @media (max-width:600px){#${ID}-bar{flex-basis:52px;padding:0 10px;gap:7px}#${ID}-viewport{padding:8px 8px 20px}#${ID}-count{font-size:12px}#${ID}-bar button{padding:7px 9px}}
 #${ID}-grid{display:flex;align-items:flex-start;gap:10px;width:100%;max-width:1600px;margin:auto}.${ID}-column{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:10px}
-.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease;pointer-events:none;user-select:none;-webkit-user-drag:none}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;background:#000b;color:#fff;font-size:16px;line-height:1;text-decoration:none;box-shadow:0 1px 5px #0009}.${ID}-like{position:absolute;left:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:999px;background:#000b;color:#fff;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like.active{color:#f91880;transform:scale(1.04)}.${ID}-like:disabled{cursor:default}
+.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease;pointer-events:none;user-select:none;-webkit-user-drag:none}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:0;border-radius:999px;background:#000b;color:#fff;font-size:16px;line-height:1;text-decoration:none;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like{position:absolute;left:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:999px;background:#000b;color:#fff;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like.active{color:#f91880;transform:scale(1.04)}.${ID}-like:disabled{cursor:default}
 `;
   document.head.append(style);
 
@@ -44,7 +49,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
 
   const mediaURL = url => url.replace(/([?&])name=[^&]*/i, '$1name=large');
   const columnsForWidth = () => innerWidth >= 1450 ? 5 : innerWidth >= 1100 ? 4 : innerWidth >= 700 ? 3 : 2;
-  function setCount() { counter.textContent = `${items.size}/${MAX_ITEMS} 张`; launch.textContent = `图片瀑布流 (${items.size})`; }
+  function setCount() { counter.textContent = `${items.size}/${maxItems} 张`; launch.textContent = `图片瀑布流 (${items.size})`; }
   function ensureColumns(force = false) {
     const needed = columnsForWidth();
     if (!force && grid.children.length === needed) return;
@@ -68,7 +73,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     likeButton.disabled = true; likeButton.textContent = '…'; likeButton.title = '正在喜欢';
     let synced = false;
     try {
-      const action = window.__X_IMAGE_WATERFALL_ACTION__;
+      const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
       if (action && typeof action.like === 'function') { await action.like(id); synced = true; }
     } catch (_) {}
     if (!synced && entry.article) {
@@ -90,7 +95,8 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
       const image = new Image(); image.loading = 'lazy'; image.src = entry.src; image.alt = '时间线图片';
       const likeButton = document.createElement('button'); likeButton.className = ID + '-like'; likeButton.type = 'button'; likeButton.textContent = '♡'; likeButton.title = '喜欢';
       likeButton.addEventListener('click', event => like(entry, likeButton, event));
-      const tag = document.createElement('a'); tag.className = ID + '-tag'; tag.href = entry.href; tag.target = '_blank'; tag.rel = 'noopener noreferrer'; tag.textContent = '🔗'; tag.title = '打开原推文'; tag.setAttribute('aria-label', '打开原推文');
+      const tag = document.createElement('button'); tag.className = ID + '-tag'; tag.type = 'button'; tag.textContent = '🔗'; tag.title = '打开原推文'; tag.setAttribute('aria-label', '打开原推文');
+      tag.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); GM_openInTab(entry.href, {active: true, setParent: true}); });
       card.append(image, likeButton, tag);
       const column = shortestColumn();
       column.append(card); column.cards++;
@@ -101,14 +107,14 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   function scan() {
     let added = 0;
     document.querySelectorAll('article').forEach(article => {
-      if (items.size >= MAX_ITEMS) return;
+      if (items.size >= maxItems) return;
       const status = article.querySelector('a[href*="/status/"]');
       const href = status ? status.href : location.href;
       article.querySelectorAll('img').forEach(image => {
         const src = image.currentSrc || image.src || '';
         if (!/^https:\/\/pbs\.twimg\.com\/media\//.test(src)) return;
         const key = src.replace(/([?&])name=[^&]*/i, '');
-        if (items.size < MAX_ITEMS && !items.has(key)) { items.set(key, {src: mediaURL(src), href, article, mounted: false}); added++; }
+        if (items.size < maxItems && !items.has(key)) { items.set(key, {src: mediaURL(src), href, article, mounted: false}); added++; }
       });
     });
     if (opened && added) mountNew();
@@ -145,7 +151,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   function stopAuto() { auto = false; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
   function toggleAuto() {
     if (auto) return stopAuto();
-    if (items.size >= MAX_ITEMS) { setCount(); return; }
+    if (items.size >= maxItems) { setCount(); return; }
     auto = true; idleRounds = 0; previousCount = items.size; updateAutoLabel();
     timelineStep();
     autoTimer = setInterval(() => {
@@ -153,13 +159,21 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
       scan();
       idleRounds = items.size === previousCount ? idleRounds + 1 : 0;
       previousCount = items.size;
-      if (items.size >= MAX_ITEMS || idleRounds >= 8) return stopAuto();
+      if (items.size >= maxItems || idleRounds >= 8) return stopAuto();
       // Let the gallery additions paint first, then start the next smooth background move.
       requestAnimationFrame(() => { if (auto) timelineStep(); });
     }, 1400);
   }
   // The full-screen panel itself is the interaction barrier. Do not capture-stop events:
   // that would also stop Like/link handlers and X's own programmatic timeline refresh.
+  GM_registerMenuCommand('打开 / 关闭图片瀑布流', () => openGallery());
+  GM_registerMenuCommand('启动 / 停止自动加载', () => { if (!opened) openGallery(true); toggleAuto(); });
+  GM_registerMenuCommand(`设置图片上限（当前 ${maxItems}）`, () => {
+    const value = Number(prompt('图片收集上限（50–1000，刷新页面后完全生效）', String(maxItems)));
+    if (!Number.isFinite(value)) return;
+    maxItems = Math.max(50, Math.min(1000, Math.round(value)));
+    GM_setValue('maxItems', maxItems); setCount();
+  });
   launch.onclick = () => openGallery(); panel.querySelector('.close').onclick = () => openGallery(false); autoButton.onclick = toggleAuto;
   addEventListener('keydown', e => { if (e.key === 'Escape') openGallery(false); });
   addEventListener('resize', () => { if (opened && columnsForWidth() !== columnCount) { ensureColumns(true); mountNew(); } });
