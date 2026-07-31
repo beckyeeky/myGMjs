@@ -3,10 +3,11 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
+// @version      0.5.0
+// @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
-// @version      0.3.1
-// @description  汇总当前 X 时间线图片；固定分栏、已加入卡片不重排，并可自动滚动加载。
+// @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
+// @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @grant        none
@@ -25,7 +26,7 @@
 #${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow-y:auto;background:#000d;padding:64px 14px 30px;box-sizing:border-box}#${ID}-panel.open{display:block}
 #${ID}-bar{position:fixed;inset:0 0 auto;height:54px;z-index:2;display:flex;align-items:center;gap:10px;padding:0 14px;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}
 #${ID}-grid{display:flex;align-items:flex-start;gap:10px;width:100%;max-width:1600px;margin:auto}.${ID}-column{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:10px}
-.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:7px;bottom:7px;padding:4px 6px;border-radius:7px;background:#000a;color:#fff;font:11px system-ui,-apple-system,sans-serif;line-height:1}
+.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:7px;bottom:7px;padding:4px 6px;border-radius:7px;background:#000a;color:#fff;font:11px system-ui,-apple-system,sans-serif;line-height:1}.${ID}-like{position:absolute;left:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:999px;background:#000b;color:#fff;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like.active{color:#f91880;transform:scale(1.04)}.${ID}-like:disabled{cursor:default}
 `;
   document.head.append(style);
 
@@ -44,11 +45,38 @@
     const needed = columnsForWidth();
     if (!force && grid.children.length === needed) return;
     columnCount = needed;
-    grid.replaceChildren(...Array.from({length: needed}, () => Object.assign(document.createElement('div'), {className: ID + '-column'})));
+    grid.replaceChildren(...Array.from({length: needed}, () => {
+      const column = document.createElement('div'); column.className = ID + '-column'; column.load = 0; column.cards = 0; return column;
+    }));
     for (const entry of items.values()) entry.mounted = false;
   }
   function shortestColumn() {
-    return [...grid.children].reduce((best, col) => col.getBoundingClientRect().height < best.getBoundingClientRect().height ? col : best);
+    // 综合累计图片高度与卡片数量：Lazy-load 尚未返回尺寸时，也不会持续堆到同一列。
+    return [...grid.children].reduce((best, col) =>
+      (col.load + col.cards * 180) < (best.load + best.cards * 180) ? col : best
+    );
+  }
+  async function like(entry, likeButton, event) {
+    event.preventDefault(); event.stopPropagation();
+    if (likeButton.disabled) return;
+    const id = (entry.href.match(/status(?:es)?\/(\d{5,25})/) || [])[1];
+    if (!id) return;
+    likeButton.disabled = true; likeButton.textContent = '…'; likeButton.title = '正在喜欢';
+    let synced = false;
+    try {
+      const action = window.__X_IMAGE_WATERFALL_ACTION__;
+      if (action && typeof action.like === 'function') { await action.like(id); synced = true; }
+    } catch (_) {}
+    if (!synced && entry.article) {
+      // Adapter 不可用或失败时，退回 X 页面上的原按钮。
+      const button = entry.article.querySelector('[data-testid="like"]');
+      if (button) { button.click(); synced = true; }
+    }
+    if (synced) {
+      likeButton.classList.add('active'); likeButton.textContent = '♥'; likeButton.title = '已喜欢';
+    } else {
+      likeButton.textContent = '♡'; likeButton.title = '未能同步喜欢'; likeButton.disabled = false;
+    }
   }
   function mountNew() {
     ensureColumns();
@@ -56,8 +84,14 @@
       if (entry.mounted) continue;
       const link = document.createElement('a'); link.className = ID + '-card'; link.href = entry.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
       const image = new Image(); image.loading = 'lazy'; image.src = entry.src; image.alt = '打开原推文';
+      const likeButton = document.createElement('button'); likeButton.className = ID + '-like'; likeButton.type = 'button'; likeButton.textContent = '♡'; likeButton.title = '喜欢';
+      likeButton.addEventListener('click', event => like(entry, likeButton, event));
       const tag = document.createElement('span'); tag.className = ID + '-tag'; tag.textContent = '原推文';
-      link.append(image, tag); shortestColumn().append(link); entry.mounted = true;
+      link.append(image, likeButton, tag);
+      const column = shortestColumn();
+      column.append(link); column.cards++;
+      image.onload = () => { column.load += image.naturalHeight || image.height || 250; };
+      entry.mounted = true;
     }
   }
   function scan() {
@@ -69,7 +103,7 @@
         const src = image.currentSrc || image.src || '';
         if (!/^https:\/\/pbs\.twimg\.com\/media\//.test(src)) return;
         const key = src.replace(/([?&])name=[^&]*/i, '');
-        if (!items.has(key)) { items.set(key, {src: mediaURL(src), href, mounted: false}); added++; }
+        if (!items.has(key)) { items.set(key, {src: mediaURL(src), href, article, mounted: false}); added++; }
       });
     });
     if (opened && added) mountNew();

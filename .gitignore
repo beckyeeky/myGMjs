@@ -1,0 +1,7 @@
+src/
+tools/
+node_modules/
+package.json
+package-lock.json
+dist/*.map
+.env
