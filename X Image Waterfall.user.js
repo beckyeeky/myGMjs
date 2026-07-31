@@ -3,7 +3,7 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.6.1
+// @version      0.6.2
 // @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮、原推文链接，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
@@ -24,7 +24,7 @@
   style.textContent = `
 #${ID}-button{position:fixed;right:20px;bottom:88px;z-index:2147483646;border:0;border-radius:999px;padding:11px 16px;background:#1d9bf0;color:#fff;font:600 14px system-ui,-apple-system,sans-serif;box-shadow:0 3px 14px #0008;cursor:pointer}
 html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
-#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow:hidden;isolation:isolate;background:#000;box-sizing:border-box}#${ID}-panel.open{display:flex;flex-direction:column}
+#${ID}-panel{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;z-index:2147483647;display:none;overflow:hidden;isolation:isolate;background:#000;color:#e7e9ea;box-sizing:border-box}#${ID}-panel[open]{display:flex;flex-direction:column}#${ID}-panel::backdrop{background:#000}
 #${ID}-bar{position:sticky;top:0;flex:0 0 54px;width:100%;z-index:10;display:flex;align-items:center;gap:10px;padding:0 14px;box-sizing:border-box;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif;border-bottom:1px solid #2f3336;box-shadow:0 2px 8px #0008}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar .close{background:#2f3336;color:#e7e9ea}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}#${ID}-bar button:active{transform:scale(.96)}
 #${ID}-viewport{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#000;padding:10px 14px 30px;box-sizing:border-box;transform:translateZ(0)}
 @media (max-width:600px){#${ID}-bar{flex-basis:52px;padding:0 10px;gap:7px}#${ID}-viewport{padding:8px 8px 20px}#${ID}-count{font-size:12px}#${ID}-bar button{padding:7px 9px}}
@@ -34,7 +34,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   document.head.append(style);
 
   const launch = document.createElement('button'); launch.id = ID + '-button'; launch.textContent = '图片瀑布流';
-  const panel = document.createElement('section'); panel.id = ID + '-panel';
+  const panel = document.createElement('dialog'); panel.id = ID + '-panel';
   panel.innerHTML = `<div id="${ID}-bar"><strong>图片瀑布流</strong><span id="${ID}-count">0 张</span><button class="auto" type="button">自动加载</button><button class="close" type="button">关闭</button></div><div id="${ID}-viewport"><main id="${ID}-grid"></main></div>`;
   document.body.append(launch, panel);
   const grid = panel.querySelector('#' + ID + '-grid');
@@ -127,9 +127,17 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     const next = value ?? !opened;
     if (next === opened) return;
     opened = next;
-    panel.classList.toggle('open', opened);
-    if (opened) { lockBackground(); ensureColumns(true); mountNew(); setCount(); }
-    else { stopAuto(); unlockBackground(); }
+    if (opened) {
+      lockBackground();
+      if (typeof panel.showModal === 'function') panel.showModal();
+      else panel.setAttribute('open', '');
+      ensureColumns(true); mountNew(); setCount();
+    } else {
+      stopAuto();
+      if (typeof panel.close === 'function' && panel.open) panel.close();
+      else panel.removeAttribute('open');
+      unlockBackground();
+    }
   }
   function timelineStep() {
     // Keep X's virtual timeline moving even while the modal is open. The panel blocks user
@@ -158,6 +166,8 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   // The full-screen panel itself is the interaction barrier. Do not capture-stop events:
   // that would also stop Like/link handlers and X's own programmatic timeline refresh.
   launch.onclick = () => openGallery(); panel.querySelector('.close').onclick = () => openGallery(false); autoButton.onclick = toggleAuto;
+  panel.addEventListener('cancel', event => { event.preventDefault(); openGallery(false); });
+  panel.addEventListener('close', () => { if (opened) { opened = false; stopAuto(); unlockBackground(); } });
   addEventListener('keydown', e => { if (e.key === 'Escape') openGallery(false); });
   addEventListener('resize', () => { if (opened && columnsForWidth() !== columnCount) { ensureColumns(true); mountNew(); } });
   new MutationObserver(() => { clearTimeout(mutationTimer); mutationTimer = setTimeout(scan, 250); }).observe(document.documentElement, {childList: true, subtree: true});
