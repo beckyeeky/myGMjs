@@ -3,8 +3,8 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.4
-// @description  面向 Tampermonkey 的 X 图片瀑布流；请求加载失败时自动滚动时间线，并隐藏底层页面减少闪屏。
+// @version      0.7.5
+// @description  面向 Tampermonkey 的 X 图片瀑布流；撤销会触发 iOS 白光闪烁的底层 visibility 切换。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
@@ -33,8 +33,8 @@
   const style = document.createElement('style');
   style.textContent = `
 #${ID}-button{position:fixed;right:20px;bottom:88px;z-index:2147483646;border:0;border-radius:999px;padding:11px 16px;background:#1d9bf0;color:#fff;font:600 14px system-ui,-apple-system,sans-serif;box-shadow:0 3px 14px #0008;cursor:pointer}
-html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}body.${ID}-locked>div:not(#${ID}-panel):not(#${ID}-button){visibility:hidden!important}
-#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow:hidden;isolation:isolate;background:#000;color:#e7e9ea;box-sizing:border-box;pointer-events:auto;touch-action:none}#${ID}-panel.open{display:flex;flex-direction:column}
+html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
+#${ID}-panel{position:fixed;inset:-1px;z-index:2147483647;display:none;overflow:hidden;isolation:isolate;background:#000;color:#e7e9ea;box-sizing:border-box;pointer-events:auto;touch-action:none;transform:translateZ(0);backface-visibility:hidden;-webkit-backface-visibility:hidden}#${ID}-panel.open{display:flex;flex-direction:column}
 #${ID}-bar{position:sticky;top:0;flex:0 0 54px;width:100%;z-index:10;display:flex;align-items:center;gap:10px;padding:0 14px;box-sizing:border-box;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif;border-bottom:1px solid #2f3336;box-shadow:0 2px 8px #0008}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar .close{background:#2f3336;color:#e7e9ea}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}#${ID}-bar button:active{transform:scale(.96)}
 #${ID}-viewport{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#000;padding:10px 14px 30px;box-sizing:border-box}
 @media (max-width:600px){#${ID}-bar{flex-basis:52px;padding:0 10px;gap:7px}#${ID}-viewport{padding:8px 8px 20px}#${ID}-count{font-size:12px}#${ID}-bar button{padding:7px 9px}}
