@@ -3,7 +3,7 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.5.3
+// @version      0.5.4
 // @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮、原推文链接，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
@@ -24,7 +24,7 @@
   style.textContent = `
 #${ID}-button{position:fixed;right:20px;bottom:88px;z-index:2147483646;border:0;border-radius:999px;padding:11px 16px;background:#1d9bf0;color:#fff;font:600 14px system-ui,-apple-system,sans-serif;box-shadow:0 3px 14px #0008;cursor:pointer}
 html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
-#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;isolation:isolate;background:#000d;padding:64px 14px 30px;box-sizing:border-box}#${ID}-panel.open{display:block}
+#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;isolation:isolate;contain:layout paint style;background:#000;padding:64px 14px 30px;box-sizing:border-box;transform:translateZ(0);backface-visibility:hidden}#${ID}-panel.open{display:block}
 #${ID}-bar{position:fixed;inset:0 0 auto;height:54px;z-index:2;display:flex;align-items:center;gap:10px;padding:0 14px;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif;border-bottom:1px solid #2f3336}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar .close{background:#2f3336;color:#e7e9ea}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}#${ID}-bar button:active{transform:scale(.96)}
 @media (max-width:600px){#${ID}-panel{padding:60px 8px 20px}#${ID}-bar{height:52px;padding:0 10px;gap:7px}#${ID}-count{font-size:12px}#${ID}-bar button{padding:7px 9px}}
 #${ID}-grid{display:flex;align-items:flex-start;gap:10px;width:100%;max-width:1600px;margin:auto}.${ID}-column{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:10px}
