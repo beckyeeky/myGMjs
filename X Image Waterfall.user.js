@@ -3,8 +3,8 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.6
-// @description  面向 Tampermonkey 的 X 图片瀑布流；回退到早期稳定的遮罩与平滑滚动机制。
+// @version      0.7.7
+// @description  面向 Tampermonkey 的 X 图片瀑布流；恢复可靠收集当前时间线已加载图片。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
@@ -165,7 +165,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     if (next === opened) return;
     opened = next;
     panel.classList.toggle('open', opened);
-    if (opened) { lockBackground(); ensureColumns(true); mountNew(); setCount(); }
+    if (opened) { lockBackground(); ensureColumns(true); scan(); mountNew(); setCount(); }
     else { stopAuto(); unlockBackground(); }
   }
   function addRemoteItems(remoteItems) {
@@ -231,8 +231,15 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   launch.onclick = () => openGallery(); panel.querySelector('.close').onclick = () => openGallery(false); autoButton.onclick = toggleAuto;
   addEventListener('keydown', e => { if (e.key === 'Escape') openGallery(false); });
   addEventListener('resize', () => { if (opened && columnsForWidth() !== columnCount) { ensureColumns(true); mountNew(); } });
-  const timelineRoot = document.querySelector('main[role="main"]') || document.querySelector('main') || document.body;
-  new MutationObserver(() => { clearTimeout(mutationTimer); mutationTimer = setTimeout(scan, 400); }).observe(timelineRoot, {childList: true, subtree: true});
+  const timelineRoot = document.body;
+  new MutationObserver(() => { clearTimeout(mutationTimer); mutationTimer = setTimeout(scan, 180); }).observe(timelineRoot, {childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'srcset']});
+  // 捕获懒加载图片只更新 currentSrc/src 的情况，MutationObserver 不一定收到属性变化。
+  document.addEventListener('load', event => {
+    const image = event.target;
+    if (image && image.tagName === 'IMG' && /^https:\/\/pbs\.twimg\.com\/media\//.test(image.currentSrc || image.src || '')) {
+      clearTimeout(mutationTimer); mutationTimer = setTimeout(scan, 60);
+    }
+  }, true);
   scan();
   }
 })();
