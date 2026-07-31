@@ -3,8 +3,8 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.3
-// @description  面向 Tampermonkey 的 X 图片瀑布流；请求级自动加载，并按图片宽高比均衡各列。
+// @version      0.7.4
+// @description  面向 Tampermonkey 的 X 图片瀑布流；请求加载失败时自动滚动时间线，并隐藏底层页面减少闪屏。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
@@ -28,12 +28,12 @@
   const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const items = new Map();
   let opened = false, auto = false, autoTimer = null, mutationTimer = null, autoBusy = false;
-  let previousCount = 0, idleRounds = 0, columnCount = 0, waitRounds = 0;
+  let previousCount = 0, idleRounds = 0, columnCount = 0, waitRounds = 0, requestFailures = 0;
 
   const style = document.createElement('style');
   style.textContent = `
 #${ID}-button{position:fixed;right:20px;bottom:88px;z-index:2147483646;border:0;border-radius:999px;padding:11px 16px;background:#1d9bf0;color:#fff;font:600 14px system-ui,-apple-system,sans-serif;box-shadow:0 3px 14px #0008;cursor:pointer}
-html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
+html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}body.${ID}-locked>div:not(#${ID}-panel):not(#${ID}-button){visibility:hidden!important}
 #${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow:hidden;isolation:isolate;background:#000;color:#e7e9ea;box-sizing:border-box;pointer-events:auto;touch-action:none}#${ID}-panel.open{display:flex;flex-direction:column}
 #${ID}-bar{position:sticky;top:0;flex:0 0 54px;width:100%;z-index:10;display:flex;align-items:center;gap:10px;padding:0 14px;box-sizing:border-box;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif;border-bottom:1px solid #2f3336;box-shadow:0 2px 8px #0008}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar .close{background:#2f3336;color:#e7e9ea}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}#${ID}-bar button:active{transform:scale(.96)}
 #${ID}-viewport{position:relative;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;background:#000;padding:10px 14px 30px;box-sizing:border-box}
@@ -178,35 +178,43 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     if (opened && added) mountNew();
     setCount(); return added;
   }
+  function scrollTimeline() {
+    const before = window.scrollY;
+    window.scrollTo(0, before + Math.max(innerHeight * 1.8, 1100));
+    autoButton.textContent = '滚动加载中…';
+  }
   async function autoStep() {
     if (!auto || autoBusy) return;
     const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
     const ready = action && typeof action.loadMoreTimeline === 'function' && (!action.timelineReady || action.timelineReady());
-    if (!ready) {
+    if (!ready || requestFailures >= 2) {
       waitRounds++;
-      autoButton.textContent = '等待时间线…';
-      // 绝不滚动底层页面。首次进入主页时，让 X 自己完成请求模板初始化。
-      if (waitRounds >= 20) { stopAuto(); autoButton.textContent = '未捕获时间线'; }
+      scrollTimeline();
+      // 给 X 的虚拟时间线留出更新 DOM 的时间，下一轮 scan 会收集新图片。
+      setTimeout(() => { if (auto) { const added = scan(); idleRounds = added ? 0 : idleRounds + 1; } }, 650);
+      if (idleRounds >= 14 || items.size >= maxItems) stopAuto();
       return;
     }
-    waitRounds = 0; autoButton.textContent = '停止加载'; autoBusy = true;
+    waitRounds = 0; autoButton.textContent = '请求加载中…'; autoBusy = true;
     let added = 0;
     try {
-      added = addRemoteItems(await delayReject(action.loadMoreTimeline(), 8000, 'Timeline request timed out'));
-    } catch (_) { added = 0; }
+      const result = await delayReject(action.loadMoreTimeline(), 6500, 'Timeline request timed out');
+      added = addRemoteItems(result);
+      requestFailures = 0;
+    } catch (_) { requestFailures++; }
     finally { autoBusy = false; }
     idleRounds = added ? 0 : idleRounds + 1;
     previousCount = items.size;
-    if (items.size >= maxItems || idleRounds >= 12) stopAuto();
+    if (items.size >= maxItems || idleRounds >= 14) stopAuto();
   }
-  function updateAutoLabel() { autoButton.textContent = auto ? (waitRounds ? '等待时间线…' : '停止加载') : '自动加载'; }
-  function stopAuto() { auto = false; autoBusy = false; waitRounds = 0; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
+  function updateAutoLabel() { autoButton.textContent = auto ? '停止加载' : '自动加载'; }
+  function stopAuto() { auto = false; autoBusy = false; waitRounds = 0; requestFailures = 0; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
   function toggleAuto() {
     if (auto) return stopAuto();
     if (items.size >= maxItems) { setCount(); return; }
-    auto = true; idleRounds = 0; waitRounds = 0; previousCount = items.size; updateAutoLabel();
+    auto = true; idleRounds = 0; waitRounds = 0; requestFailures = 0; previousCount = items.size; updateAutoLabel();
     autoStep();
-    autoTimer = setInterval(autoStep, 900);
+    autoTimer = setInterval(autoStep, 1100);
   }
   // The full-screen panel itself is the interaction barrier. Do not capture-stop events:
   // that would also stop Like/link handlers and X's own programmatic timeline refresh.
