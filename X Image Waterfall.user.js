@@ -3,8 +3,8 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.5.0
-// @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮，并可自动滚动加载。
+// @version      0.5.2
+// @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮、原推文链接，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
@@ -23,10 +23,12 @@
   const style = document.createElement('style');
   style.textContent = `
 #${ID}-button{position:fixed;right:20px;bottom:88px;z-index:2147483646;border:0;border-radius:999px;padding:11px 16px;background:#1d9bf0;color:#fff;font:600 14px system-ui,-apple-system,sans-serif;box-shadow:0 3px 14px #0008;cursor:pointer}
-#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow-y:auto;background:#000d;padding:64px 14px 30px;box-sizing:border-box}#${ID}-panel.open{display:block}
-#${ID}-bar{position:fixed;inset:0 0 auto;height:54px;z-index:2;display:flex;align-items:center;gap:10px;padding:0 14px;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}
+html.${ID}-locked,body.${ID}-locked{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important}
+#${ID}-panel{position:fixed;inset:0;z-index:2147483645;display:none;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;isolation:isolate;background:#000d;padding:64px 14px 30px;box-sizing:border-box}#${ID}-panel.open{display:block}
+#${ID}-bar{position:fixed;inset:0 0 auto;height:54px;z-index:2;display:flex;align-items:center;gap:10px;padding:0 14px;background:#16181c;color:#e7e9ea;font:14px system-ui,-apple-system,sans-serif;border-bottom:1px solid #2f3336}#${ID}-bar strong{white-space:nowrap}#${ID}-bar .auto{margin-left:auto;background:#1d9bf0;color:#fff}#${ID}-bar .close{background:#2f3336;color:#e7e9ea}#${ID}-bar button{border:0;border-radius:18px;padding:7px 10px;font-weight:700;cursor:pointer}#${ID}-bar button:active{transform:scale(.96)}
+@media (max-width:600px){#${ID}-panel{padding:60px 8px 20px}#${ID}-bar{height:52px;padding:0 10px;gap:7px}#${ID}-count{font-size:12px}#${ID}-bar button{padding:7px 9px}}
 #${ID}-grid{display:flex;align-items:flex-start;gap:10px;width:100%;max-width:1600px;margin:auto}.${ID}-column{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:10px}
-.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:7px;bottom:7px;padding:4px 6px;border-radius:7px;background:#000a;color:#fff;font:11px system-ui,-apple-system,sans-serif;line-height:1}.${ID}-like{position:absolute;left:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:999px;background:#000b;color:#fff;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like.active{color:#f91880;transform:scale(1.04)}.${ID}-like:disabled{cursor:default}
+.${ID}-card{display:block;position:relative;width:100%;overflow:hidden;border-radius:12px;background:#16181c;line-height:0;box-shadow:0 1px 3px #0005}.${ID}-card img{display:block;width:100%;height:auto;transition:transform .16s ease;pointer-events:none;user-select:none;-webkit-user-drag:none}.${ID}-card:hover img{transform:scale(1.018)}.${ID}-tag{position:absolute;right:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:999px;background:#000b;color:#fff;font-size:16px;line-height:1;text-decoration:none;box-shadow:0 1px 5px #0009}.${ID}-like{position:absolute;left:8px;bottom:8px;z-index:1;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:0;border-radius:999px;background:#000b;color:#fff;font-size:18px;line-height:1;cursor:pointer;box-shadow:0 1px 5px #0009}.${ID}-like.active{color:#f91880;transform:scale(1.04)}.${ID}-like:disabled{cursor:default}
 `;
   document.head.append(style);
 
@@ -82,14 +84,14 @@
     ensureColumns();
     for (const entry of items.values()) {
       if (entry.mounted) continue;
-      const link = document.createElement('a'); link.className = ID + '-card'; link.href = entry.href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-      const image = new Image(); image.loading = 'lazy'; image.src = entry.src; image.alt = '打开原推文';
+      const card = document.createElement('div'); card.className = ID + '-card';
+      const image = new Image(); image.loading = 'lazy'; image.src = entry.src; image.alt = '时间线图片';
       const likeButton = document.createElement('button'); likeButton.className = ID + '-like'; likeButton.type = 'button'; likeButton.textContent = '♡'; likeButton.title = '喜欢';
       likeButton.addEventListener('click', event => like(entry, likeButton, event));
-      const tag = document.createElement('span'); tag.className = ID + '-tag'; tag.textContent = '原推文';
-      link.append(image, likeButton, tag);
+      const tag = document.createElement('a'); tag.className = ID + '-tag'; tag.href = entry.href; tag.target = '_blank'; tag.rel = 'noopener noreferrer'; tag.textContent = '🔗'; tag.title = '打开原推文'; tag.setAttribute('aria-label', '打开原推文');
+      card.append(image, likeButton, tag);
       const column = shortestColumn();
-      column.append(link); column.cards++;
+      column.append(card); column.cards++;
       image.onload = () => { column.load += image.naturalHeight || image.height || 250; };
       entry.mounted = true;
     }
@@ -110,7 +112,27 @@
     setCount();
     return added;
   }
-  function openGallery(value) { opened = value ?? !opened; panel.classList.toggle('open', opened); if (opened) { ensureColumns(true); mountNew(); setCount(); } }
+  let pageScrollY = 0;
+  function lockBackground() {
+    pageScrollY = window.scrollY || window.pageYOffset || 0;
+    document.documentElement.classList.add(ID + '-locked');
+    document.body.classList.add(ID + '-locked');
+    document.body.style.position = 'fixed'; document.body.style.top = `-${pageScrollY}px`; document.body.style.width = '100%';
+  }
+  function unlockBackground() {
+    document.documentElement.classList.remove(ID + '-locked');
+    document.body.classList.remove(ID + '-locked');
+    document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = '';
+    window.scrollTo(0, pageScrollY);
+  }
+  function openGallery(value) {
+    const next = value ?? !opened;
+    if (next === opened) return;
+    opened = next;
+    panel.classList.toggle('open', opened);
+    if (opened) { lockBackground(); ensureColumns(true); mountNew(); setCount(); }
+    else { stopAuto(); unlockBackground(); }
+  }
   function timelineStep() {
     // scrollIntoView 能命中 X 实际使用的 Timeline 滚动容器；比 window.scrollBy 更可靠。
     const articles = document.querySelectorAll('article');
@@ -131,6 +153,9 @@
       timelineStep();
     }, 1400);
   }
+  // Capture-phase fence: prevent wheel/touch gestures from reaching X behind the modal.
+  for (const type of ['wheel', 'touchmove']) panel.addEventListener(type, event => event.stopPropagation(), {capture: true, passive: true});
+  panel.addEventListener('click', event => event.stopPropagation(), true);
   launch.onclick = () => openGallery(); panel.querySelector('.close').onclick = () => openGallery(false); autoButton.onclick = toggleAuto;
   addEventListener('keydown', e => { if (e.key === 'Escape') openGallery(false); });
   addEventListener('resize', () => { if (opened && columnsForWidth() !== columnCount) { ensureColumns(true); mountNew(); } });
