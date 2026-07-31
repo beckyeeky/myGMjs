@@ -30,7 +30,7 @@ They are archived here so they can be installed and updated from a single place.
 | Twitter Media Filter Button Style Patch V4 | 0.4 | `https://*.twitter.com/*, https://*.x.com/*` | Modifies the style of the button created by the Twitter media-only filter toggle script (v0.17) | [Install](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js) |
 | Twitter Screenshot Button | 0.6 | `https://twitter.com/*, https://x.com/*` | Add a screenshot button next to the share button on Twitter/X | [Install](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Screenshot%20Button.user.js) |
 | X (Twitter) Force Left (No Color Change) | 2.1 | `https://x.com/*, https://twitter.com/*` | 只负责将X界面移到左侧，不修改背景颜色 | [Install](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js) |
-| X 图片瀑布流画廊（Tampermonkey Advanced） | 0.7.2 | `https://x.com/*, https://twitter.com/*` | 汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮，并可自动滚动加载。 | [Install](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js) |
+| X 图片瀑布流画廊（Tampermonkey Advanced） | 0.7.3 | `https://x.com/*, https://twitter.com/*` | 汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮，并可自动滚动加载。 | [Install](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js) |
 | X 图片瀑布流 Classic（传统 Userscript 插件） | 0.6.4-classic | `https://x.com/*, https://twitter.com/*` | 冻结的传统插件兼容版：无高级 GM API，最多收集 500 张。 | [Install](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall%20Classic.user.js) |
 | X（旧Twitter）画像プレビュー (Right Side Edition) | 1.4 | `https://twitter.com/*, https://x.com/*` | 大屏专用：悬停图片时，在屏幕右侧显示固定容器预览。仅在悬停媒体时响应滚轮切换。 | [Install](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Preview.user.js) |
 
@@ -46,7 +46,7 @@ They are archived here so they can be installed and updated from a single place.
 - [`Twitter Media Filter Button Style Patch.user.js`](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js) — Twitter Media Filter Button Style Patch V4 v0.4
 - [`Twitter Screenshot Button.user.js`](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Screenshot%20Button.user.js) — Twitter Screenshot Button v0.6
 - [`X Force Left.user.js`](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Force%20Left.user.js) — X (Twitter) Force Left (No Color Change) v2.1
-- [`X Image Waterfall.user.js`](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js) — X 图片瀑布流画廊（Tampermonkey Advanced） v0.7.2
+- [`X Image Waterfall.user.js`](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js) — X 图片瀑布流画廊（Tampermonkey Advanced） v0.7.3
 - [`X Preview.user.js`](https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Preview.user.js) — X（旧Twitter）画像プレビュー (Right Side Edition) v1.4
 
 

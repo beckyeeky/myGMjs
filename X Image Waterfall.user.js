@@ -3,8 +3,8 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.2
-// @description  面向 Tampermonkey 的 X 图片瀑布流；页面上下文请求级自动加载，不滚动底层时间线。
+// @version      0.7.3
+// @description  面向 Tampermonkey 的 X 图片瀑布流；请求级自动加载，并按图片宽高比均衡各列。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
@@ -64,10 +64,12 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     for (const entry of items.values()) entry.mounted = false;
   }
   function shortestColumn() {
-    // 综合累计图片高度与卡片数量：Lazy-load 尚未返回尺寸时，也不会持续堆到同一列。
-    return [...grid.children].reduce((best, col) =>
-      (col.load + col.cards * 180) < (best.load + best.cards * 180) ? col : best
-    );
+    return [...grid.children].reduce((best, col) => col.load < best.load ? col : best);
+  }
+  function estimatedHeight(entry) {
+    const ratio = Number(entry.ratio);
+    // 以统一列宽 1000 归一化高度；未知尺寸先按接近方图估算。
+    return ratio > 0 ? Math.max(350, Math.min(2400, 1000 / ratio)) : 1000;
   }
   const delayReject = (promise, ms, message) => new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);
@@ -119,8 +121,12 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
       tag.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); GM_openInTab(entry.href, {active: true, setParent: true}); });
       card.append(image, likeButton, tag);
       const column = shortestColumn();
-      column.append(card); column.cards++;
-      image.onload = () => { column.load += image.naturalHeight || image.height || 250; };
+      const estimate = estimatedHeight(entry);
+      column.load += estimate; column.cards++; column.append(card);
+      image.onload = () => {
+        const actual = image.naturalWidth ? Math.max(350, Math.min(2400, 1000 * image.naturalHeight / image.naturalWidth)) : estimate;
+        column.load += actual - estimate;
+      };
       entry.mounted = true;
     }
   }
@@ -134,7 +140,10 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
         const src = image.currentSrc || image.src || '';
         if (!/^https:\/\/pbs\.twimg\.com\/media\//.test(src)) return;
         const key = src.replace(/([?&])name=[^&]*/i, '');
-        if (items.size < maxItems && !items.has(key)) { items.set(key, {src: mediaURL(src), href, article, mounted: false}); added++; }
+        if (items.size < maxItems && !items.has(key)) {
+          const ratio = image.naturalWidth && image.naturalHeight ? image.naturalWidth / image.naturalHeight : 0;
+          items.set(key, {src: mediaURL(src), href, article, ratio, mounted: false}); added++;
+        }
       });
     });
     if (opened && added) mountNew();
@@ -164,7 +173,7 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     for (const item of remoteItems || []) {
       if (items.size >= maxItems || !item || !item.src || !item.href) break;
       const key = item.src.replace(/([?&])name=[^&]*/i, '');
-      if (!items.has(key)) { items.set(key, {src: mediaURL(item.src), href: item.href, article: null, mounted: false}); added++; }
+      if (!items.has(key)) { items.set(key, {src: mediaURL(item.src), href: item.href, article: null, ratio: item.width && item.height ? item.width / item.height : 0, mounted: false}); added++; }
     }
     if (opened && added) mountNew();
     setCount(); return added;
