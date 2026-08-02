@@ -3,11 +3,10 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.7
-// @description  面向 Tampermonkey 的 X 图片瀑布流；恢复可靠收集当前时间线已加载图片。
+// @version      0.7.8
+// @description  面向 Tampermonkey 的 X 图片瀑布流；不再拦截 X 启动请求，避免页面卡在黑色启动画面。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
-// @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @grant        GM_openInTab
@@ -15,7 +14,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
-// @run-at       document-start
+// @run-at       document-idle
 // ==/UserScript==
 (() => {
   'use strict';
@@ -25,10 +24,9 @@
   function init() {
   const ID = 'minis-x-waterfall';
   let maxItems = Math.max(50, Math.min(1000, Number(GM_getValue('maxItems', 500)) || 500));
-  const pageWindow = typeof unsafeWindow === 'object' ? unsafeWindow : window;
   const items = new Map();
   let opened = false, auto = false, autoTimer = null, mutationTimer = null, autoBusy = false;
-  let previousCount = 0, idleRounds = 0, columnCount = 0, waitRounds = 0, requestFailures = 0;
+  let previousCount = 0, idleRounds = 0, columnCount = 0;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -71,10 +69,6 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     // 以统一列宽 1000 归一化高度；未知尺寸先按接近方图估算。
     return ratio > 0 ? Math.max(350, Math.min(2400, 1000 / ratio)) : 1000;
   }
-  const delayReject = (promise, ms, message) => new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(message)), ms);
-    Promise.resolve(promise).then(value => { clearTimeout(timer); resolve(value); }, error => { clearTimeout(timer); reject(error); });
-  });
   function currentArticle(id) {
     for (const article of document.querySelectorAll('article')) {
       if (article.querySelector(`a[href*="/status/${id}"]`)) return article;
@@ -88,24 +82,15 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     if (!id) return;
     likeButton.disabled = true; likeButton.classList.remove('error'); likeButton.classList.add('pending');
     likeButton.textContent = '…'; likeButton.title = '正在喜欢';
-    let synced = false, failure = null;
-    try {
-      const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
-      if (!action || typeof action.like !== 'function') throw new Error('Like adapter unavailable');
-      const result = await delayReject(action.like(id), 10000, 'Like request timed out');
-      synced = !!result;
-    } catch (error) { failure = error; }
-    if (!synced) {
-      const article = currentArticle(id) || (entry.article && entry.article.isConnected ? entry.article : null);
-      const button = article && article.querySelector('[data-testid="like"]');
-      if (button) { button.click(); synced = true; }
-    }
+    let synced = false;
+    const article = currentArticle(id) || (entry.article && entry.article.isConnected ? entry.article : null);
+    const button = article && article.querySelector('[data-testid="like"]');
+    if (button) { button.click(); synced = true; }
     likeButton.classList.remove('pending'); likeButton.disabled = false;
     if (synced) {
       likeButton.classList.add('active'); likeButton.textContent = '♥'; likeButton.title = '已喜欢';
     } else {
-      likeButton.classList.add('error'); likeButton.textContent = '♡';
-      likeButton.title = failure && /timed out/i.test(failure.message) ? '请求超时，点按重试' : '未能同步喜欢，点按重试';
+      likeButton.classList.add('error'); likeButton.textContent = '♡'; likeButton.title = '原推文已离开当前时间线，无法同步喜欢';
       setTimeout(() => likeButton.classList.remove('error'), 1600);
     }
   }
@@ -168,16 +153,6 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     if (opened) { lockBackground(); ensureColumns(true); scan(); mountNew(); setCount(); }
     else { stopAuto(); unlockBackground(); }
   }
-  function addRemoteItems(remoteItems) {
-    let added = 0;
-    for (const item of remoteItems || []) {
-      if (items.size >= maxItems || !item || !item.src || !item.href) break;
-      const key = item.src.replace(/([?&])name=[^&]*/i, '');
-      if (!items.has(key)) { items.set(key, {src: mediaURL(item.src), href: item.href, article: null, ratio: item.width && item.height ? item.width / item.height : 0, mounted: false}); added++; }
-    }
-    if (opened && added) mountNew();
-    setCount(); return added;
-  }
   function scrollTimeline() {
     const articles = document.querySelectorAll('article');
     const last = articles[articles.length - 1];
@@ -187,34 +162,20 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   }
   async function autoStep() {
     if (!auto || autoBusy) return;
-    const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
-    const ready = action && typeof action.loadMoreTimeline === 'function' && (!action.timelineReady || action.timelineReady());
-    if (!ready || requestFailures >= 2) {
-      waitRounds++;
-      scrollTimeline();
-      // 给 X 的虚拟时间线留出更新 DOM 的时间，下一轮 scan 会收集新图片。
-      setTimeout(() => { if (auto) { const added = scan(); idleRounds = added ? 0 : idleRounds + 1; } }, 650);
-      if (idleRounds >= 14 || items.size >= maxItems) stopAuto();
-      return;
-    }
-    waitRounds = 0; autoButton.textContent = '请求加载中…'; autoBusy = true;
-    let added = 0;
-    try {
-      const result = await delayReject(action.loadMoreTimeline(), 6500, 'Timeline request timed out');
-      added = addRemoteItems(result);
-      requestFailures = 0;
-    } catch (_) { requestFailures++; }
-    finally { autoBusy = false; }
+    autoBusy = true; scrollTimeline();
+    await new Promise(resolve => setTimeout(resolve, 650));
+    const added = scan();
+    autoBusy = false;
     idleRounds = added ? 0 : idleRounds + 1;
     previousCount = items.size;
     if (items.size >= maxItems || idleRounds >= 14) stopAuto();
   }
   function updateAutoLabel() { autoButton.textContent = auto ? '停止加载' : '自动加载'; }
-  function stopAuto() { auto = false; autoBusy = false; waitRounds = 0; requestFailures = 0; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
+  function stopAuto() { auto = false; autoBusy = false; clearInterval(autoTimer); autoTimer = null; updateAutoLabel(); }
   function toggleAuto() {
     if (auto) return stopAuto();
     if (items.size >= maxItems) { setCount(); return; }
-    auto = true; idleRounds = 0; waitRounds = 0; requestFailures = 0; previousCount = items.size; updateAutoLabel();
+    auto = true; idleRounds = 0; previousCount = items.size; updateAutoLabel();
     autoStep();
     autoTimer = setInterval(autoStep, 1400);
   }
