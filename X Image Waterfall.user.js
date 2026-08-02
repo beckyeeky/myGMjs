@@ -3,10 +3,11 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.8
-// @description  面向 Tampermonkey 的 X 图片瀑布流；不再拦截 X 启动请求，避免页面卡在黑色启动画面。
+// @version      0.7.9
+// @description  面向 Tampermonkey 的 X 图片瀑布流；恢复按需 GraphQL Like，不拦截 X 启动请求。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
+// @require      https://raw.githubusercontent.com/beckyeeky/myGMjs/main/dist/x-like-adapter.js
 // @match        https://x.com/*
 // @match        https://twitter.com/*
 // @grant        GM_openInTab
@@ -24,6 +25,7 @@
   function init() {
   const ID = 'minis-x-waterfall';
   let maxItems = Math.max(50, Math.min(1000, Number(GM_getValue('maxItems', 500)) || 500));
+  const pageWindow = typeof unsafeWindow === 'object' && unsafeWindow ? unsafeWindow : window;
   const items = new Map();
   let opened = false, auto = false, autoTimer = null, mutationTimer = null, autoBusy = false;
   let previousCount = 0, idleRounds = 0, columnCount = 0;
@@ -83,14 +85,22 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     likeButton.disabled = true; likeButton.classList.remove('error'); likeButton.classList.add('pending');
     likeButton.textContent = '…'; likeButton.title = '正在喜欢';
     let synced = false;
-    const article = currentArticle(id) || (entry.article && entry.article.isConnected ? entry.article : null);
-    const button = article && article.querySelector('[data-testid="like"]');
-    if (button) { button.click(); synced = true; }
+    try {
+      const action = pageWindow.__X_IMAGE_WATERFALL_ACTION__;
+      if (!action || typeof action.like !== 'function') throw new Error('Like adapter unavailable');
+      const result = await action.like(id);
+      synced = !!(result && result.ok);
+    } catch (_) {}
+    if (!synced) {
+      const article = currentArticle(id) || (entry.article && entry.article.isConnected ? entry.article : null);
+      const button = article && article.querySelector('[data-testid="like"]');
+      if (button) { button.click(); synced = true; }
+    }
     likeButton.classList.remove('pending'); likeButton.disabled = false;
     if (synced) {
       likeButton.classList.add('active'); likeButton.textContent = '♥'; likeButton.title = '已喜欢';
     } else {
-      likeButton.classList.add('error'); likeButton.textContent = '♡'; likeButton.title = '原推文已离开当前时间线，无法同步喜欢';
+      likeButton.classList.add('error'); likeButton.textContent = '♡'; likeButton.title = '未能同步喜欢，点按重试';
       setTimeout(() => likeButton.classList.remove('error'), 1600);
     }
   }
