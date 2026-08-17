@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Twitter/X - Clickable Original Images
 // @namespace    https://github.com/beckyeeky/myGMjs
-// @version      5.0.0
+// @version      5.0.1
 // @license      AGPL-3.0-or-later
-// @description  Open post images at original resolution and show uncropped thumbnails, including the new ScrollSnap carousel layout.
+// @description  Middle-click post images to open the original file and show uncropped thumbnails, including the new ScrollSnap carousel layout.
 // @author       marp; beckyeeky compatibility update
 // @homepageURL  https://github.com/beckyeeky/myGMjs
 // @source       https://greasyfork.org/scripts/376120
@@ -24,6 +24,7 @@
   const MEDIA_HOST = "pbs.twimg.com";
   const MEDIA_PATH = "/media/";
   const PROCESSED_ATTRIBUTE = "data-x-orig-image";
+  const TARGET_ATTRIBUTE = "data-x-orig-image-url";
 
   function originalImageUrl(value) {
     try {
@@ -76,8 +77,8 @@
 
     uncropImage(image);
     link.setAttribute(PROCESSED_ATTRIBUTE, "");
-    link.title = "Open original image";
-    if (link.href !== target) link.href = target;
+    link.setAttribute(TARGET_ATTRIBUTE, target);
+    link.title = "Middle-click to open original image";
   }
 
   function processTree(root) {
@@ -139,15 +140,19 @@
         attributeFilter: ["src", "srcset", "href"],
       });
 
-      // Stop X's client-side router from using the original /photo/N React
-      // prop after the DOM href changes. Browser default navigation (including
-      // Ctrl/Cmd-click) then follows the pbs.twimg.com URL.
+      // Preserve X's normal left-click photo viewer. Only a middle click opens
+      // the original media URL in a new tab.
       document.addEventListener(
-        "click",
+        "auxclick",
         (event) => {
-          if (!(event.target instanceof Element)) return;
+          if (event.button !== 1 || !(event.target instanceof Element)) return;
           const link = event.target.closest(`a[${PROCESSED_ATTRIBUTE}]`);
-          if (link) event.stopPropagation();
+          const target = link?.getAttribute(TARGET_ATTRIBUTE);
+          if (!target) return;
+
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          window.open(target, "_blank", "noopener,noreferrer");
         },
         true,
       );
