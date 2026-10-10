@@ -5,7 +5,7 @@
 // @license      MIT
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Media%20Filter%20Button%20Style%20Patch.user.js
-// @version      0.4
+// @version      0.4.1
 // @description  Modifies the style of the button created by the Twitter media-only filter toggle script (v0.17)
 // @match        https://*.twitter.com/*
 // @match        https://*.x.com/*
@@ -33,26 +33,4 @@
     `;
     document.head.appendChild(styleElement);
 
-    const applyButtonStyle = () => {
-        const button = document.querySelector('nav[role="navigation"] > button:first-child');
-        if (button) {
-            button.style.cssText = ""; // 清除可能存在的内联样式
-            console.log("Media filter button style applied");
-        }
-    };
-
-    // 初始应用样式
-    setTimeout(applyButtonStyle, 1000);
-
-    // 创建一个 MutationObserver 来监视 DOM 变化
-    const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.type === 'childList') {
-                applyButtonStyle();
-            }
-        });
-    });
-
-    // 开始观察 body 元素及其子树的变化
-    observer.observe(document.body, { childList: true, subtree: true });
 })();

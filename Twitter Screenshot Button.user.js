@@ -5,7 +5,7 @@
 // @license      MIT
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Screenshot%20Button.user.js
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Twitter%20Screenshot%20Button.user.js
-// @version      0.6
+// @version      0.6.1
 // @description  Add a screenshot button next to the share button on Twitter/X
 // @match        https://twitter.com/*
 // @match        https://x.com/*
@@ -209,8 +209,9 @@
     function processNode(node) {
         if (!(node instanceof HTMLElement)) return;
 
-        if (node.matches('article')) {
-            addScreenshotButton(node);
+        const article = node.closest('article');
+        if (article) {
+            addScreenshotButton(article);
         }
 
         node.querySelectorAll?.('article').forEach(addScreenshotButton);
