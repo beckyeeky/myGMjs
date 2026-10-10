@@ -5,7 +5,7 @@
 // @license      MIT
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/Change%20Image%20Quality%20to%20Orig.user.js
-// @version      1.0
+// @version      1.0.1
 // @description  Change image quality to orig on x.com
 // @match        https://x.com/*
 // @grant        none
@@ -14,10 +14,12 @@
 (function() {
     'use strict';
 
-    // Mutation observer to watch for new images being added to the page
+    // Watch for newly added images and changes to existing image sources.
     const observer = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
-            if (mutation.addedNodes.length) {
+            if (mutation.type === 'attributes') {
+                modifyImageUrls(mutation.target);
+            } else if (mutation.addedNodes.length) {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === 1) {
                         modifyImageUrls(node);
@@ -34,7 +36,8 @@
             if (src.includes("pbs.twimg.com/media/")) {
                 let url = new URL(src);
                 url.searchParams.set('name', 'orig');
-                element.src = url.toString();
+                const origSrc = url.toString();
+                if (src !== origSrc) element.src = origSrc;
             }
         } else {
             element.querySelectorAll('img').forEach(img => {
@@ -42,7 +45,8 @@
                 if (src.includes("pbs.twimg.com/media/")) {
                     let url = new URL(src);
                     url.searchParams.set('name', 'orig');
-                    img.src = url.toString();
+                    const origSrc = url.toString();
+                    if (src !== origSrc) img.src = origSrc;
                 }
             });
         }
@@ -54,6 +58,8 @@
     // Observe the entire body for changes
     observer.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['src']
     });
 })();

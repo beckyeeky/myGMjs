@@ -7,7 +7,7 @@
 // @license      MIT
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Preview.user.js
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Preview.user.js
-// @version        1.4
+// @version        1.4.1
 // @description    大屏专用：悬停图片时，在屏幕右侧显示固定容器预览。仅在悬停媒体时响应滚轮切换。
 // @match          https://twitter.com/*
 // @match          https://x.com/*
@@ -261,12 +261,12 @@
   function onPointerOut(e) {
     if (!(e.target instanceof Element)) return;
 
-    const img = getMediaImage(e.target);
-    if (!img || img !== activeHoverImg) return;
+    if (!activeHoverImg) return;
 
     const nextTarget = e.relatedTarget;
-    const mediaRoot = getMediaRoot(img);
+    const mediaRoot = getMediaRoot(activeHoverImg);
     const container = document.getElementById(CONTAINER_ID);
+    if (!mediaRoot?.contains(e.target) && !container?.contains(e.target)) return;
 
     if (nextTarget instanceof Node) {
       if (mediaRoot?.contains(nextTarget)) return;

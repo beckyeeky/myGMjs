@@ -3,7 +3,7 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.6.4-classic
+// @version      0.6.5-classic
 // @description  汇总当前 X 时间线图片；稳定瀑布流、Like 快捷按钮、原推文链接，并可自动滚动加载。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall%20Classic.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall%20Classic.user.js
@@ -44,7 +44,11 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
 
   const mediaURL = url => url.replace(/([?&])name=[^&]*/i, '$1name=large');
   const columnsForWidth = () => innerWidth >= 1450 ? 5 : innerWidth >= 1100 ? 4 : innerWidth >= 700 ? 3 : 2;
-  function setCount() { counter.textContent = `${items.size}/${MAX_ITEMS} 张`; launch.textContent = `图片瀑布流 (${items.size})`; }
+  function setCount() {
+    const countText = `${items.size}/${MAX_ITEMS} 张`, launchText = `图片瀑布流 (${items.size})`;
+    if (counter.textContent !== countText) counter.textContent = countText;
+    if (launch.textContent !== launchText) launch.textContent = launchText;
+  }
   function ensureColumns(force = false) {
     const needed = columnsForWidth();
     if (!force && grid.children.length === needed) return;

@@ -3,7 +3,7 @@
 // @namespace    https://github.com/beckyeeky/myGMjs
 // @author       beckyeeky
 // @license      MIT
-// @version      0.7.9
+// @version      0.7.10
 // @description  面向 Tampermonkey 的 X 图片瀑布流；恢复按需 GraphQL Like，不拦截 X 启动请求。
 // @downloadURL  https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
 // @updateURL    https://raw.githubusercontent.com/beckyeeky/myGMjs/main/X%20Image%20Waterfall.user.js
@@ -53,7 +53,11 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
 
   const mediaURL = url => url.replace(/([?&])name=[^&]*/i, '$1name=large');
   const columnsForWidth = () => innerWidth >= 1450 ? 5 : innerWidth >= 1100 ? 4 : innerWidth >= 700 ? 3 : 2;
-  function setCount() { counter.textContent = `${items.size}/${maxItems} 张`; launch.textContent = `图片瀑布流 (${items.size})`; }
+  function setCount() {
+    const countText = `${items.size}/${maxItems} 张`, launchText = `图片瀑布流 (${items.size})`;
+    if (counter.textContent !== countText) counter.textContent = countText;
+    if (launch.textContent !== launchText) launch.textContent = launchText;
+  }
   function ensureColumns(force = false) {
     const needed = columnsForWidth();
     if (!force && grid.children.length === needed) return;
@@ -174,9 +178,9 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
     if (!auto || autoBusy) return;
     autoBusy = true; scrollTimeline();
     await new Promise(resolve => setTimeout(resolve, 650));
-    const added = scan();
+    scan();
     autoBusy = false;
-    idleRounds = added ? 0 : idleRounds + 1;
+    idleRounds = items.size === previousCount ? idleRounds + 1 : 0;
     previousCount = items.size;
     if (items.size >= maxItems || idleRounds >= 14) stopAuto();
   }
@@ -194,7 +198,9 @@ html.${ID}-locked,body.${ID}-locked{overscroll-behavior:none!important}
   GM_registerMenuCommand('打开 / 关闭图片瀑布流', () => openGallery());
   GM_registerMenuCommand('启动 / 停止自动加载', () => { if (!opened) openGallery(true); toggleAuto(); });
   GM_registerMenuCommand(`设置图片上限（当前 ${maxItems}）`, () => {
-    const value = Number(prompt('图片收集上限（50–1000，刷新页面后完全生效）', String(maxItems)));
+    const input = prompt('图片收集上限（50–1000，刷新页面后完全生效）', String(maxItems));
+    if (input === null || input.trim() === '') return;
+    const value = Number(input);
     if (!Number.isFinite(value)) return;
     maxItems = Math.max(50, Math.min(1000, Math.round(value)));
     GM_setValue('maxItems', maxItems); setCount();
